@@ -1,2 +1,2 @@
 # MailNext
-Ứng dụng quản lý ema
+Ứng dụng quản lý email
