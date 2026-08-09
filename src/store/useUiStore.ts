@@ -9,6 +9,7 @@ export type SettingsPanel =
   | "rules"
   | "notifications"
   | "updates"
+  | "backup"
   | "ai"
   | null;
 

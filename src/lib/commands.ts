@@ -110,3 +110,11 @@ export function summarizeEmail(subject: string, body: string): Promise<string> {
 export function aiSummaryAvailable(): Promise<boolean> {
   return invoke("ai_summary_available");
 }
+
+export function saveBackupFile(path: string, content: string): Promise<void> {
+  return invoke("save_backup_file", { path, content });
+}
+
+export function readBackupFile(path: string): Promise<string> {
+  return invoke("read_backup_file", { path });
+}

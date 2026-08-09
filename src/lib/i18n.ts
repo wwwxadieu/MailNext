@@ -157,6 +157,7 @@ const en: Dict = {
   "settings.tab.notifications": "Notifications",
   "settings.tab.ai": "AI Summary",
   "settings.tab.updates": "Updates",
+  "settings.tab.backup": "Backup & Restore",
 
   "general.language": "Language",
   "general.languageDescription": "Choose the language used throughout MailNext.",
@@ -450,6 +451,7 @@ const vi: Dict = {
   "settings.tab.notifications": "Thông báo",
   "settings.tab.ai": "Tóm tắt AI",
   "settings.tab.updates": "Cập nhật",
+  "settings.tab.backup": "Sao lưu & Khôi phục",
 
   "general.language": "Ngôn ngữ",
   "general.languageDescription": "Chọn ngôn ngữ hiển thị trong toàn bộ MailNext.",

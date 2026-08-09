@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { AtSign, Bell, FileText, Filter, PenLine, RefreshCw, Sparkles, SunMoon, Tag } from "lucide-react";
+import { AtSign, Bell, FileText, Filter, HardDrive, PenLine, RefreshCw, Sparkles, SunMoon, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
@@ -11,6 +11,7 @@ import { LabelManager } from "@/components/settings/LabelManager";
 import { RulesSettings } from "@/components/settings/RulesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { UpdateSettings } from "@/components/settings/UpdateSettings";
+import { BackupSettings } from "@/components/settings/BackupSettings";
 import { useUiStore } from "@/store/useUiStore";
 import type { SettingsPanel } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
@@ -23,6 +24,7 @@ const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIc
   { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
   { id: "rules", labelKey: "settings.tab.rules", icon: Filter },
   { id: "notifications", labelKey: "settings.tab.notifications", icon: Bell },
+  { id: "backup", labelKey: "settings.tab.backup", icon: HardDrive },
   { id: "ai", labelKey: "settings.tab.ai", icon: Sparkles },
   { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw },
 ];
@@ -49,7 +51,7 @@ export function SettingsModal() {
               )}
             >
               <Icon size={15} strokeWidth={1.5} />
-              {t(labelKey)}
+              {t(labelKey) ?? (id === "backup" ? "Sao lưu" : id)}
             </button>
           ))}
         </div>
@@ -61,6 +63,7 @@ export function SettingsModal() {
           {panel === "labels" && <LabelManager />}
           {panel === "rules" && <RulesSettings />}
           {panel === "notifications" && <NotificationSettings />}
+          {panel === "backup" && <BackupSettings />}
           {panel === "ai" && <AiSummarySettings />}
           {panel === "updates" && <UpdateSettings />}
         </div>
