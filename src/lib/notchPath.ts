@@ -1,5 +1,5 @@
-export const NOTCH_HALF_HEIGHT = 30;
-export const NOTCH_DEPTH = 26;
+export const NOTCH_HALF_HEIGHT = 42;
+export const NOTCH_DEPTH = 36;
 export const NOTCH_BUBBLE_SIZE = 44;
 
 // Builds a CSS clip-path path() carving a smooth S-curve dip into the right edge

@@ -43,6 +43,7 @@ const folderIcons: Record<SpecialUse, LucideIcon> = {
 
 const NOTCH_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const BUBBLE_RADIUS = NOTCH_BUBBLE_SIZE / 2;
+const GLOW_SIZE = NOTCH_BUBBLE_SIZE + 40;
 
 interface NotchState {
   clipPath: string;
@@ -140,8 +141,12 @@ export function Sidebar() {
   return (
     <aside
       ref={asideRef}
-      className="glass-panel relative flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 p-3"
-      style={notch ? { clipPath: notch.clipPath, transition: `clip-path 320ms ${NOTCH_EASE}` } : undefined}
+      className="glass-panel relative flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 p-3 dark:border-r-accent/40"
+      style={{
+        clipPath: notch?.clipPath,
+        transition: `clip-path 320ms ${NOTCH_EASE}`,
+        filter: "drop-shadow(0 6px 18px rgba(15, 23, 42, 0.16))",
+      }}
     >
       <div className="mb-3 flex flex-col gap-0.5">
         {accounts.length > 1 ? (
@@ -244,19 +249,32 @@ export function Sidebar() {
 
       {notch &&
         createPortal(
-          <div
-            aria-hidden
-            className="pointer-events-none fixed z-30 flex items-center justify-center rounded-full bg-accent text-white shadow-glass-lg"
-            style={{
-              left: notch.bubbleLeft,
-              top: notch.bubbleTop,
-              width: NOTCH_BUBBLE_SIZE,
-              height: NOTCH_BUBBLE_SIZE,
-              transition: `left 320ms ${NOTCH_EASE}, top 320ms ${NOTCH_EASE}`,
-            }}
-          >
-            <notch.BubbleIcon size={19} strokeWidth={1.75} />
-          </div>,
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none fixed z-20 rounded-full bg-accent/25 blur-xl dark:bg-accent/30"
+              style={{
+                left: notch.bubbleLeft - (GLOW_SIZE - NOTCH_BUBBLE_SIZE) / 2,
+                top: notch.bubbleTop - (GLOW_SIZE - NOTCH_BUBBLE_SIZE) / 2,
+                width: GLOW_SIZE,
+                height: GLOW_SIZE,
+                transition: `left 320ms ${NOTCH_EASE}, top 320ms ${NOTCH_EASE}`,
+              }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none fixed z-30 flex items-center justify-center rounded-full bg-accent text-white shadow-glass-lg ring-4 ring-white/70 dark:ring-neutral-900/70"
+              style={{
+                left: notch.bubbleLeft,
+                top: notch.bubbleTop,
+                width: NOTCH_BUBBLE_SIZE,
+                height: NOTCH_BUBBLE_SIZE,
+                transition: `left 320ms ${NOTCH_EASE}, top 320ms ${NOTCH_EASE}`,
+              }}
+            >
+              <notch.BubbleIcon size={19} strokeWidth={1.75} />
+            </div>
+          </>,
           document.body,
         )}
     </aside>
