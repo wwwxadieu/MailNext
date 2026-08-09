@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera, Check, User, X } from "lucide-react";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useT } from "@/lib/useT";
@@ -35,7 +36,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert(t("profile.imageTooLarge") ?? "Image size should be less than 2MB");
+      alert(t("profile.imageTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -58,12 +59,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="glass-panel-elevated relative w-full max-w-md overflow-hidden rounded-2xl border border-black/10 bg-white/95 p-6 shadow-2xl dark:border-white/10 dark:bg-neutral-900/95">
-        <div className="flex items-center justify-between border-b border-black/5 pb-4 dark:border-white/10">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="glass-panel-elevated relative w-[420px] max-w-full overflow-hidden rounded-2xl border border-black/15 bg-white/95 p-6 shadow-2xl dark:border-white/15 dark:bg-neutral-900/95">
+        <div className="flex items-center justify-between border-b border-black/10 pb-4 dark:border-white/10">
           <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-            {t("profile.editTitle") ?? "Hồ sơ cá nhân"}
+            {t("profile.editTitle")}
           </h2>
           <button
             onClick={onClose}
@@ -88,7 +89,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             <button
               onClick={() => fileInputRef.current?.click()}
               className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100 text-white"
-              title={t("profile.changeAvatar") ?? "Đổi ảnh đại diện"}
+              title={t("profile.changeAvatar")}
             >
               <Camera size={20} strokeWidth={1.5} />
             </button>
@@ -104,40 +105,40 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           {avatarData && (
             <button
               onClick={() => setAvatarData(null)}
-              className="text-xs text-danger hover:underline"
+              className="text-xs font-medium text-danger hover:underline"
             >
-              {t("profile.removeAvatar") ?? "Xóa ảnh đại diện"}
+              {t("profile.removeAvatar")}
             </button>
           )}
 
           <div className="w-full space-y-4 mt-2">
             <div>
-              <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                {t("profile.displayName") ?? "Tên hiển thị"}
+              <label className="block text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
+                {t("profile.displayName")}
               </label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-black/5 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent dark:border-white/10 dark:bg-white/5 dark:text-neutral-100"
+                className="w-full rounded-xl border border-black/10 bg-black/5 px-3 py-2 text-sm font-medium text-neutral-900 outline-none focus:border-accent focus:ring-1 focus:ring-accent dark:border-white/10 dark:bg-white/5 dark:text-neutral-100"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                {t("profile.email") ?? "Địa chỉ Email"}
+              <label className="block text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
+                {t("profile.email")}
               </label>
               <input
                 type="text"
                 disabled
                 value={activeAccount.email}
-                className="w-full rounded-xl border border-black/10 bg-black/[0.02] px-3 py-2 text-sm text-neutral-400 outline-none dark:border-white/10 dark:bg-white/[0.02]"
+                className="w-full rounded-xl border border-black/10 bg-black/[0.03] px-3 py-2 text-sm text-neutral-400 outline-none dark:border-white/10 dark:bg-white/[0.03]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">
-                {t("profile.badgeColor") ?? "Màu nhận diện"}
+              <label className="block text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-2">
+                {t("profile.badgeColor")}
               </label>
               <div className="flex items-center gap-2">
                 {PRESET_COLORS.map((c) => (
@@ -156,22 +157,23 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-end gap-2 border-t border-black/5 pt-4 dark:border-white/10">
+        <div className="mt-6 flex items-center justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
           <button
             onClick={onClose}
-            className="rounded-xl px-4 py-2 text-xs font-medium text-neutral-600 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/10"
+            className="rounded-xl px-4 py-2 text-xs font-semibold text-neutral-600 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/10"
           >
-            {t("app.cancel") ?? "Hủy"}
+            {t("app.cancel")}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving || !displayName.trim()}
-            className="rounded-xl bg-accent px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-accent-hover disabled:opacity-50"
           >
-            {t("app.save") ?? "Lưu thay đổi"}
+            {t("app.save")}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -278,6 +278,19 @@ const en: Dict = {
   "updateBanner.restart": "Restart now",
   "updateBanner.failed": "Update failed",
   "updateBanner.retry": "Retry",
+
+  "app.cancel": "Cancel",
+  "app.save": "Save changes",
+  "sidebar.hoptu": "System Mailboxes",
+  "sidebar.phanloai": "Categories",
+  "sidebar.thumuc": "Folders & Labels",
+  "profile.editTitle": "Edit Profile",
+  "profile.displayName": "Display Name",
+  "profile.email": "Email Address",
+  "profile.badgeColor": "Badge Color",
+  "profile.changeAvatar": "Change avatar",
+  "profile.removeAvatar": "Remove avatar",
+  "profile.imageTooLarge": "Image size should be under 2MB",
 };
 
 const vi: Dict = {
@@ -551,6 +564,19 @@ const vi: Dict = {
   "updateBanner.restart": "Khởi động lại ngay",
   "updateBanner.failed": "Cập nhật thất bại",
   "updateBanner.retry": "Thử lại",
+
+  "app.cancel": "Hủy",
+  "app.save": "Lưu thay đổi",
+  "sidebar.hoptu": "Hộp thư chính",
+  "sidebar.phanloai": "Phân loại",
+  "sidebar.thumuc": "Thư mục cá nhân",
+  "profile.editTitle": "Hồ sơ cá nhân",
+  "profile.displayName": "Tên hiển thị",
+  "profile.email": "Địa chỉ Email",
+  "profile.badgeColor": "Màu nhận diện",
+  "profile.changeAvatar": "Đổi ảnh đại diện",
+  "profile.removeAvatar": "Xóa ảnh đại diện",
+  "profile.imageTooLarge": "Dung lượng ảnh phải nhỏ hơn 2MB",
 };
 
 export const translations: Record<Locale, Dict> = { en, vi };
