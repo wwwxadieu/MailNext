@@ -8,11 +8,19 @@
 use async_imap::types::Fetch;
 use futures::TryStreamExt;
 use mail_parser::{MessageParser, MimeHeaders};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 use tokio::net::TcpStream;
 
 use crate::models::{
     EmailAddress, EmailAttachment, EmailMessage, FolderInfo, ImapConnection, MailAuth,
 };
+
+#[derive(Clone, Serialize)]
+struct FolderSyncProgress {
+    current: usize,
+    total: usize,
+}
 
 type ImapSession = async_imap::Session<tokio_native_tls::TlsStream<TcpStream>>;
 
@@ -71,7 +79,7 @@ pub async fn imap_test_connection(connection: ImapConnection) -> Result<bool, St
 }
 
 #[tauri::command]
-pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderInfo>, String> {
+pub async fn imap_list_folders(app: AppHandle, connection: ImapConnection) -> Result<Vec<FolderInfo>, String> {
     let mut session = connect(&connection).await?;
 
     let names: Vec<_> = session
@@ -82,12 +90,13 @@ pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderI
         .await
         .map_err(|e| format!("Could not read folder list: {e}"))?;
 
-    let mut folders = Vec::with_capacity(names.len());
-    for name in &names {
+    let total = names.len();
+    let mut folders = Vec::with_capacity(total);
+    for (index, name) in names.iter().enumerate() {
         let path = name.name().to_string();
         let special_use = classify_special_use(&path);
 
-        let (unread, total) = match session.examine(&path).await {
+        let (unread, total_count) = match session.examine(&path).await {
             Ok(mailbox) => {
                 let unseen = session
                     .uid_search("UNSEEN")
@@ -99,17 +108,129 @@ pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderI
             Err(_) => (0, 0),
         };
 
+        let raw_name = path.rsplit('/').next().unwrap_or(&path);
         folders.push(FolderInfo {
-            name: path.rsplit('/').next().unwrap_or(&path).to_string(),
+            name: decode_imap_utf7(raw_name),
             path,
             special_use,
             unread_count: unread,
-            total_count: total,
+            total_count,
         });
+
+        let _ = app.emit("mail://folder-sync-progress", FolderSyncProgress { current: index + 1, total });
     }
 
     session.logout().await.map_err(|e| e.to_string())?;
     Ok(folders)
+}
+
+/// Decodes an IMAP mailbox name from modified UTF-7 (RFC 3501 §5.1.3) to a
+/// normal Rust `String`, for display purposes only. The raw, still-encoded
+/// name must keep being used for any IMAP command (SELECT/EXAMINE/etc.) —
+/// this is applied solely to `FolderInfo.name`, never to `.path`.
+///
+/// Gmail doesn't always bother with modified UTF-7 for label names — a
+/// label a user renamed in a non-English locale (e.g. Vietnamese) often
+/// comes back as literal UTF-8 instead. Everything outside `&...-` escapes
+/// must therefore be copied through as UTF-8 string slices rather than
+/// walked byte-by-byte: reinterpreting each byte of a multi-byte UTF-8
+/// sequence as its own Unicode scalar (the previous `byte as char`
+/// approach) corrupts exactly that already-correct text.
+fn decode_imap_utf7(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut rest = input;
+    while let Some(amp_pos) = rest.find('&') {
+        result.push_str(&rest[..amp_pos]);
+        rest = &rest[amp_pos + 1..];
+        match rest.find('-') {
+            Some(dash_pos) => {
+                let chunk = &rest[..dash_pos];
+                if chunk.is_empty() {
+                    result.push('&');
+                } else {
+                    match decode_modified_base64(chunk) {
+                        Some(decoded) => result.push_str(&decoded),
+                        None => {
+                            // Not valid modified UTF-7 — keep the original
+                            // text rather than risk garbling it further.
+                            result.push('&');
+                            result.push_str(chunk);
+                            result.push('-');
+                        }
+                    }
+                }
+                rest = &rest[dash_pos + 1..];
+            }
+            None => {
+                // No terminating '-': not actually modified UTF-7 — keep
+                // the '&' and everything after it verbatim.
+                result.push('&');
+                result.push_str(rest);
+                rest = "";
+            }
+        }
+    }
+    result.push_str(rest);
+    result
+}
+
+fn decode_modified_base64(chunk: &str) -> Option<String> {
+    use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
+    let standard: String = chunk.chars().map(|c| if c == ',' { '/' } else { c }).collect();
+    let bytes = STANDARD_NO_PAD.decode(standard.as_bytes()).ok()?;
+    if bytes.len() % 2 != 0 {
+        return None;
+    }
+    let units: Vec<u16> = bytes.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+    String::from_utf16(&units).ok()
+}
+
+/// Converts HTML to plain text for the message-preview snippet, skipping
+/// `<style>`/`<script>` block contents entirely (unlike `mail-parser`'s own
+/// html-to-text fallback, which doesn't).
+fn strip_html_to_text(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let lower = html.to_ascii_lowercase();
+    let mut i = 0;
+    while i < html.len() {
+        if html.as_bytes()[i] == b'<' {
+            if lower[i..].starts_with("<style") {
+                match lower[i..].find("</style>") {
+                    Some(end) => i += end + "</style>".len(),
+                    None => break,
+                }
+            } else if lower[i..].starts_with("<script") {
+                match lower[i..].find("</script>") {
+                    Some(end) => i += end + "</script>".len(),
+                    None => break,
+                }
+            } else {
+                match html[i..].find('>') {
+                    Some(end) => {
+                        result.push(' ');
+                        i += end + 1;
+                    }
+                    None => break,
+                }
+            }
+        } else {
+            let next_lt = html[i..].find('<').map(|p| i + p).unwrap_or(html.len());
+            result.push_str(&html[i..next_lt]);
+            i = next_lt;
+        }
+    }
+    decode_html_entities(&result)
+}
+
+fn decode_html_entities(input: &str) -> String {
+    input
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
 }
 
 fn classify_special_use(path: &str) -> Option<String> {
@@ -236,8 +357,18 @@ pub(crate) async fn fetch_messages(
 
             let body_text = parsed.body_text(0).map(|c| c.to_string());
             let body_html = parsed.body_html(0).map(|c| c.to_string());
-            let snippet = body_text
-                .clone()
+            // Prefer stripping the raw HTML ourselves for the preview snippet:
+            // `body_text()` falls back to the `mail-parser` crate's own
+            // html-to-text conversion when there's no genuine text/plain
+            // part, and that conversion doesn't skip <style>/<script>
+            // blocks — leaking raw CSS into message previews for any HTML
+            // email that puts a <style> tag in the body (common for
+            // Outlook-compatible newsletters).
+            let snippet_source = body_html
+                .as_deref()
+                .map(strip_html_to_text)
+                .or_else(|| body_text.clone());
+            let snippet = snippet_source
                 .unwrap_or_default()
                 .split_whitespace()
                 .collect::<Vec<_>>()
@@ -357,4 +488,33 @@ pub(crate) async fn unseen_count(connection: &ImapConnection, folder: &str) -> R
         .map_err(|e| format!("Could not search folder: {e}"))?;
     session.logout().await.map_err(|e| e.to_string())?;
     Ok(unseen)
+}
+
+#[cfg(test)]
+mod decode_imap_utf7_tests {
+    use super::decode_imap_utf7;
+
+    #[test]
+    fn decodes_modified_utf7_escapes() {
+        // "Bản nháp" ("Draft" in Vietnamese), modified UTF-7 encoded.
+        assert_eq!(decode_imap_utf7("B&HqM-n nh&AOE-p"), "Bản nháp");
+    }
+
+    #[test]
+    fn passes_through_literal_utf8_unchanged() {
+        // Gmail sends some label names as literal UTF-8 rather than
+        // modified UTF-7 — this used to get corrupted by the old
+        // byte-by-byte `byte as char` decoder.
+        assert_eq!(decode_imap_utf7("Đã gửi"), "Đã gửi");
+    }
+
+    #[test]
+    fn decodes_ampersand_escape() {
+        assert_eq!(decode_imap_utf7("Bed &- Breakfast"), "Bed & Breakfast");
+    }
+
+    #[test]
+    fn leaves_plain_ascii_unchanged() {
+        assert_eq!(decode_imap_utf7("Promotions"), "Promotions");
+    }
 }

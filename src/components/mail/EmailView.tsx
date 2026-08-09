@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import {
   Archive,
   Flag,
+  Forward,
   Loader2,
   Mail,
   Maximize2,
@@ -11,12 +12,14 @@ import {
   Paperclip,
   Reply,
   Send,
+  Signature,
   Sparkles,
   Trash2,
   X,
 } from "lucide-react";
 import { HtmlMessageFrame } from "@/components/mail/HtmlMessageFrame";
 import { RichTextEditor } from "@/components/mail/RichTextEditor";
+import { SenderAvatar } from "@/components/mail/SenderAvatar";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -25,7 +28,33 @@ import * as repo from "@/lib/repository";
 import { extractPlainText } from "@/lib/text";
 import { toImapConnection, toSmtpConnection } from "@/lib/connection";
 import { useT } from "@/lib/useT";
-import type { OutgoingMessage } from "@/types/mail";
+import type { MessageRow, OutgoingMessage, SignatureRow } from "@/types/mail";
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Quotes the original message as escaped plain text rather than embedding
+// its raw HTML: `message.body_html` is untrusted and normally only ever
+// rendered inside HtmlMessageFrame's script-less sandboxed iframe (see that
+// file's docs) — pasting it straight into this contentEditable body would
+// let inline event-handler attributes (e.g. <img onerror=...>) execute in
+// the app's own unsandboxed webview.
+function buildForwardQuote(message: MessageRow, toLabel: string): string {
+  const plainBody = extractPlainText(message.body_text, message.body_html);
+  const quotedLines = escapeHtml(plainBody).split("\n").join("<br>");
+  return [
+    "<br><br>",
+    '<div style="border-left:2px solid #ccc;padding-left:10px;color:#8e8e93;">',
+    "---------- Forwarded message ----------<br>",
+    `From: ${escapeHtml(message.from_name || message.from_address || "")}<br>`,
+    `Date: ${escapeHtml(safeFormat(message.date))}<br>`,
+    `Subject: ${escapeHtml(message.subject)}<br>`,
+    `To: ${escapeHtml(toLabel)}<br><br>`,
+    quotedLines,
+    "</div>",
+  ].join("");
+}
 
 export function EmailView() {
   const t = useT();
@@ -41,10 +70,13 @@ export function EmailView() {
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
   const message = messages.find((m) => m.id === selectedMessageId) ?? null;
 
-  const [replyOpen, setReplyOpen] = useState(false);
+  const [composeMode, setComposeMode] = useState<"reply" | "forward" | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  const [forwardTo, setForwardTo] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [signatures, setSignatures] = useState<SignatureRow[]>([]);
+  const [signaturesOpen, setSignaturesOpen] = useState(false);
 
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -56,7 +88,38 @@ export function EmailView() {
     setSummary(null);
     setSummaryError(null);
     setSummarizing(false);
+    setComposeMode(null);
+    setReplyBody("");
+    setForwardTo("");
   }, [message?.id]);
+
+  useEffect(() => {
+    if (!activeAccount) return;
+    let cancelled = false;
+    void repo.listSignatures(activeAccount.id).then((list) => {
+      if (!cancelled) setSignatures(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAccount?.id]);
+
+  function openReply() {
+    setComposeMode((current) => (current === "reply" ? null : "reply"));
+    setReplyBody("");
+  }
+
+  function openForward() {
+    if (!message) return;
+    setComposeMode((current) => (current === "forward" ? null : "forward"));
+    setForwardTo("");
+    setReplyBody(buildForwardQuote(message, toAddresses.map((a) => a.name || a.address).join(", ")));
+  }
+
+  function insertSignature(signature: SignatureRow) {
+    setSignaturesOpen(false);
+    setReplyBody((current) => `${current}<br><br>${signature.content_html}`);
+  }
 
   if (!message) {
     return (
@@ -75,26 +138,49 @@ export function EmailView() {
     );
   }
 
-  async function handleSendReply() {
-    if (!activeAccount || !folder || !message) return;
+  function parseAddressList(value: string) {
+    return value
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean)
+      .map((address) => ({ name: null, address }));
+  }
+
+  async function handleSendCompose() {
+    if (!activeAccount || !folder || !message || !composeMode) return;
     setSending(true);
     setSendError(null);
     try {
-      const outgoing: OutgoingMessage = {
-        from: { name: activeAccount.display_name, address: activeAccount.email },
-        to: message.from_address ? [{ name: message.from_name, address: message.from_address }] : [],
-        cc: [],
-        bcc: [],
-        subject: message.subject.toLowerCase().startsWith("re:") ? message.subject : `Re: ${message.subject}`,
-        bodyText: extractPlainText(null, replyBody),
-        bodyHtml: replyBody,
-        inReplyTo: message.message_id || null,
-        references: message.message_id ? [message.message_id] : [],
-        attachments: [],
-      };
+      const outgoing: OutgoingMessage =
+        composeMode === "forward"
+          ? {
+              from: { name: activeAccount.display_name, address: activeAccount.email },
+              to: parseAddressList(forwardTo),
+              cc: [],
+              bcc: [],
+              subject: message.subject.toLowerCase().startsWith("fwd:") ? message.subject : `Fwd: ${message.subject}`,
+              bodyText: extractPlainText(null, replyBody),
+              bodyHtml: replyBody,
+              inReplyTo: null,
+              references: [],
+              attachments: [],
+            }
+          : {
+              from: { name: activeAccount.display_name, address: activeAccount.email },
+              to: message.from_address ? [{ name: message.from_name, address: message.from_address }] : [],
+              cc: [],
+              bcc: [],
+              subject: message.subject.toLowerCase().startsWith("re:") ? message.subject : `Re: ${message.subject}`,
+              bodyText: extractPlainText(null, replyBody),
+              bodyHtml: replyBody,
+              inReplyTo: message.message_id || null,
+              references: message.message_id ? [message.message_id] : [],
+              attachments: [],
+            };
       await commands.smtpSend(toSmtpConnection(activeAccount), outgoing);
-      setReplyOpen(false);
+      setComposeMode(null);
       setReplyBody("");
+      setForwardTo("");
     } catch (err) {
       setSendError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -150,8 +236,11 @@ export function EmailView() {
                 <Sparkles size={15} strokeWidth={1.5} />
               )}
             </ActionButton>
-            <ActionButton label={t("emailView.reply")} onClick={() => setReplyOpen((v) => !v)}>
+            <ActionButton label={t("emailView.reply")} onClick={openReply} active={composeMode === "reply"}>
               <Reply size={15} strokeWidth={1.5} />
+            </ActionButton>
+            <ActionButton label={t("emailView.forward")} onClick={openForward} active={composeMode === "forward"}>
+              <Forward size={15} strokeWidth={1.5} />
             </ActionButton>
             <ActionButton label={t("emailView.flag")} onClick={handleFlag} active={message.is_flagged === 1}>
               <Flag size={15} strokeWidth={1.5} />
@@ -176,9 +265,7 @@ export function EmailView() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-medium text-accent">
-            {(message.from_name || message.from_address || "?").charAt(0).toUpperCase()}
-          </div>
+          <SenderAvatar name={message.from_name} address={message.from_address} size={36} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
               {message.from_name || message.from_address}
@@ -230,9 +317,17 @@ export function EmailView() {
         )}
       </div>
 
-      {replyOpen && (
+      {composeMode && (
         <div className="flex-shrink-0 border-t border-black/5 dark:border-white/10 p-4">
           <div className="glass-panel rounded-xl p-3">
+            {composeMode === "forward" && (
+              <input
+                value={forwardTo}
+                onChange={(e) => setForwardTo(e.target.value)}
+                placeholder={t("emailView.forwardTo")}
+                className="mb-2 h-8 w-full border-b border-black/5 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:border-white/10 dark:text-neutral-100"
+              />
+            )}
             <RichTextEditor
               value={replyBody}
               onChange={setReplyBody}
@@ -241,21 +336,57 @@ export function EmailView() {
               autoFocus
             />
             {sendError && <p className="mt-1 text-xs text-danger">{sendError}</p>}
-            <div className="mt-2 flex justify-end gap-2">
-              <button
-                onClick={() => setReplyOpen(false)}
-                className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10"
-              >
-                {t("emailView.cancel")}
-              </button>
-              <button
-                onClick={handleSendReply}
-                disabled={sending || !extractPlainText(null, replyBody).trim()}
-                className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40"
-              >
-                {sending ? <Loader2 size={13} className="animate-spin" strokeWidth={1.5} /> : <Send size={13} strokeWidth={1.5} />}
-                {t("emailView.send")}
-              </button>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label={t("compose.insertSignature")}
+                  title={t("compose.insertSignature")}
+                  onClick={() => setSignaturesOpen((v) => !v)}
+                  className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                >
+                  <Signature size={16} strokeWidth={1.5} />
+                </button>
+                {signaturesOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setSignaturesOpen(false)} />
+                    <div className="glass-panel-elevated absolute bottom-8 left-0 z-20 max-h-56 w-56 overflow-y-auto rounded-xl p-1.5">
+                      {signatures.length === 0 && (
+                        <p className="px-2 py-2 text-xs text-neutral-400">{t("compose.noSignatures")}</p>
+                      )}
+                      {signatures.map((signature) => (
+                        <button
+                          key={signature.id}
+                          onClick={() => insertSignature(signature)}
+                          className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-700 hover:bg-black/5 dark:text-neutral-200 dark:hover:bg-white/10"
+                        >
+                          {signature.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setComposeMode(null)}
+                  className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10"
+                >
+                  {t("emailView.cancel")}
+                </button>
+                <button
+                  onClick={handleSendCompose}
+                  disabled={
+                    sending ||
+                    !extractPlainText(null, replyBody).trim() ||
+                    (composeMode === "forward" && !forwardTo.trim())
+                  }
+                  className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+                >
+                  {sending ? <Loader2 size={13} className="animate-spin" strokeWidth={1.5} /> : <Send size={13} strokeWidth={1.5} />}
+                  {t("emailView.send")}
+                </button>
+              </div>
             </div>
           </div>
         </div>

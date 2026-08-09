@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import clsx from "clsx";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { EmailList } from "@/components/mail/EmailList";
 import { EmailView } from "@/components/mail/EmailView";
 import { ComposeModal } from "@/components/mail/ComposeModal";
+import { FloatingComposeButton } from "@/components/mail/FloatingComposeButton";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { UpdateBanner } from "@/components/update/UpdateBanner";
@@ -110,11 +112,20 @@ export default function App() {
     <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
-        {!isReadingPaneExpanded && <Sidebar />}
+        <div
+          aria-hidden={isReadingPaneExpanded}
+          className={clsx(
+            "flex-shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out",
+            isReadingPaneExpanded ? "pointer-events-none w-0 opacity-0" : "w-60 opacity-100",
+          )}
+        >
+          <Sidebar />
+        </div>
         <EmailList />
         <EmailView />
       </div>
       <ComposeModal />
+      <FloatingComposeButton />
       <SettingsModal />
       <UpdateBanner />
     </div>

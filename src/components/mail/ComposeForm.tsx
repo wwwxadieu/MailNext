@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, FileText, Loader2, Paperclip, Send } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Paperclip, Send, Signature } from "lucide-react";
 import { RichTextEditor } from "@/components/mail/RichTextEditor";
 import { useAccountStore } from "@/store/useAccountStore";
 import * as commands from "@/lib/commands";
@@ -7,7 +7,7 @@ import * as repo from "@/lib/repository";
 import { toSmtpConnection } from "@/lib/connection";
 import { extractPlainText } from "@/lib/text";
 import { useT } from "@/lib/useT";
-import type { OutgoingAttachment, OutgoingMessage, TemplateRow } from "@/types/mail";
+import type { OutgoingAttachment, OutgoingMessage, SignatureRow, TemplateRow } from "@/types/mail";
 
 export interface ComposeDraft {
   to: string;
@@ -42,19 +42,22 @@ export function ComposeForm({ initialDraft, onSent, onDetach, bodyMinHeightClass
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [signatures, setSignatures] = useState<SignatureRow[]>([]);
+  const [signaturesOpen, setSignaturesOpen] = useState(false);
 
   useEffect(() => {
     if (!activeAccount) return;
     let cancelled = false;
-    if (!initialDraft?.bodyHtml) {
-      void repo.listSignatures(activeAccount.id).then((signatures) => {
-        if (cancelled) return;
-        const defaultSignature = signatures.find((s) => s.is_default === 1);
+    void repo.listSignatures(activeAccount.id).then((list) => {
+      if (cancelled) return;
+      setSignatures(list);
+      if (!initialDraft?.bodyHtml) {
+        const defaultSignature = list.find((s) => s.is_default === 1);
         if (defaultSignature?.content_html) {
           setBody((current) => (current ? current : `<br><br>${defaultSignature.content_html}`));
         }
-      });
-    }
+      }
+    });
     void repo.listTemplates(activeAccount.id).then((list) => {
       if (!cancelled) setTemplates(list);
     });
@@ -69,6 +72,11 @@ export function ComposeForm({ initialDraft, onSent, onDetach, bodyMinHeightClass
     setTemplatesOpen(false);
     setSubject((current) => (current.trim() ? current : template.subject));
     setBody((current) => (current.trim() ? `${current}<br>${template.body_html}` : template.body_html));
+  }
+
+  function insertSignature(signature: SignatureRow) {
+    setSignaturesOpen(false);
+    setBody((current) => `${current}<br><br>${signature.content_html}`);
   }
 
   function parseAddressList(value: string) {
@@ -194,6 +202,36 @@ export function ComposeForm({ initialDraft, onSent, onDetach, bodyMinHeightClass
                       className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-700 hover:bg-black/5 dark:text-neutral-200 dark:hover:bg-white/10"
                     >
                       {template.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              aria-label={t("compose.insertSignature")}
+              title={t("compose.insertSignature")}
+              onClick={() => setSignaturesOpen((v) => !v)}
+              className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+            >
+              <Signature size={16} strokeWidth={1.5} />
+            </button>
+            {signaturesOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSignaturesOpen(false)} />
+                <div className="glass-panel-elevated absolute bottom-8 left-0 z-20 max-h-56 w-56 overflow-y-auto rounded-xl p-1.5">
+                  {signatures.length === 0 && (
+                    <p className="px-2 py-2 text-xs text-neutral-400">{t("compose.noSignatures")}</p>
+                  )}
+                  {signatures.map((signature) => (
+                    <button
+                      key={signature.id}
+                      onClick={() => insertSignature(signature)}
+                      className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-700 hover:bg-black/5 dark:text-neutral-200 dark:hover:bg-white/10"
+                    >
+                      {signature.name}
                     </button>
                   ))}
                 </div>
