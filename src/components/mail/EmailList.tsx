@@ -387,17 +387,19 @@ export function EmailList() {
                   : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
               )}
             >
-              {selectionMode ? (
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSelected(message.id);
-                  }}
-                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center cursor-pointer"
-                >
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!selectionMode) setSelectionMode(true);
+                  toggleSelected(message.id);
+                }}
+                className="flex flex-shrink-0 items-center justify-center cursor-pointer group/avatar relative"
+                title="Click để chọn email này"
+              >
+                {selectionMode ? (
                   <div
                     className={clsx(
-                      "flex h-5 w-5 items-center justify-center rounded-full border transition-all duration-200",
+                      "flex h-5 w-5 items-center justify-center rounded-full border transition-all duration-200 mt-0.5",
                       isChecked
                         ? "border-accent bg-accent text-white shadow-sm ring-2 ring-accent/30 scale-105"
                         : "border-neutral-300 dark:border-neutral-600 bg-black/5 dark:bg-white/10 hover:border-accent/60",
@@ -405,10 +407,12 @@ export function EmailList() {
                   >
                     {isChecked && <Check size={12} strokeWidth={3} />}
                   </div>
-                </div>
-              ) : (
-                <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="mt-0.5" />
-              )}
+                ) : (
+                  <div className="relative mt-0.5">
+                    <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="transition-transform group-hover/avatar:scale-110" />
+                  </div>
+                )}
+              </div>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <span

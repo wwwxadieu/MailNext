@@ -312,49 +312,73 @@ export function EmailView() {
 
         {/* Sender Info & Expander Header */}
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => openCompose(undefined, message.from_address || "")}
-              className="flex items-center gap-3 text-left group hover:opacity-90 transition-opacity"
-              title={t("emailView.quickComposeTo", { email: message.from_address || message.from_name || "" }) ?? `Soạn thư nhanh cho ${message.from_address}`}
-            >
-              <SenderAvatar name={message.from_name} address={message.from_address} size={36} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-accent transition-colors">
-                  {message.from_name || message.from_address}
-                </p>
-                <div className="flex items-center gap-1.5 text-xs text-neutral-400">
-                  <span>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => openCompose(undefined, message.from_address || "")}
+                className="flex-shrink-0 group/avatar hover:scale-105 transition-transform"
+                title={t("emailView.quickComposeTo", { email: message.from_address || message.from_name || "" }) ?? `Soạn thư nhanh cho ${message.from_address}`}
+              >
+                <SenderAvatar name={message.from_name} address={message.from_address} size={38} />
+              </button>
+
+              <div className="min-w-0 flex-1 flex flex-col justify-center">
+                {/* Sender Name & Sender Email Address */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => openCompose(undefined, message.from_address || "")}
+                    className="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-100 hover:text-accent transition-colors text-left"
+                    title={`Soạn thư nhanh cho ${message.from_address || message.from_name}`}
+                  >
+                    {message.from_name || message.from_address}
+                  </button>
+                  {message.from_name && message.from_address && (
+                    <button
+                      type="button"
+                      onClick={() => openCompose(undefined, message.from_address || "")}
+                      className="truncate text-xs text-neutral-400 font-normal hover:text-accent transition-colors text-left"
+                      title={`Soạn thư nhanh cho ${message.from_address}`}
+                    >
+                      &lt;{message.from_address}&gt;
+                    </button>
+                  )}
+                </div>
+
+                {/* Recipient & Details Expander Toggle */}
+                <div className="flex items-center gap-1.5 text-xs text-neutral-400 mt-0.5">
+                  <span className="truncate">
                     {t("emailView.to", {
-                      names: toAddresses.map((a) => a.name || a.address).join(", ") || t("emailView.you"),
+                      names: toAddresses.map((a) => (a.name ? `${a.name} (${a.address})` : a.address)).join(", ") || t("emailView.you"),
                     })}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDetails((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-neutral-500 hover:bg-black/10 dark:hover:bg-white/15 dark:text-neutral-300 transition-colors flex-shrink-0 ml-1"
+                  >
+                    <span>{showDetails ? (t("emailView.hideDetails") ?? "Ẩn chi tiết") : (t("emailView.showDetails") ?? "Chi tiết")}</span>
+                    {showDetails ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                  </button>
                 </div>
               </div>
-            </button>
+            </div>
 
-            <button
-              onClick={() => setShowDetails((v) => !v)}
-              className="flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-neutral-500 hover:bg-black/10 dark:hover:bg-white/15 dark:text-neutral-300 transition-colors"
-            >
-              <span>{showDetails ? (t("emailView.hideDetails") ?? "Ẩn chi tiết") : (t("emailView.showDetails") ?? "Chi tiết")}</span>
-              {showDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-
-            <div className="flex-1" />
-            <p className="flex-shrink-0 text-xs text-neutral-400">{safeFormat(message.date)}</p>
+            <p className="flex-shrink-0 text-xs text-neutral-400 mt-1">{safeFormat(message.date)}</p>
           </div>
 
           {/* Expanded Metadata Panel */}
           {showDetails && (
-            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-3 text-xs space-y-1.5 animate-in fade-in duration-150">
+            <div className="mt-1 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-3.5 text-xs space-y-2 animate-in fade-in duration-150 shadow-sm">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">Từ:</span>
                 <button
+                  type="button"
                   onClick={() => openCompose(undefined, message.from_address || "")}
-                  className="text-accent hover:underline font-medium truncate text-left"
+                  className="text-accent hover:underline font-medium truncate text-left flex items-center gap-1"
                 >
-                  {message.from_name ? `${message.from_name} <${message.from_address}>` : message.from_address}
+                  <span>{message.from_name ? `${message.from_name} <${message.from_address}>` : message.from_address}</span>
                 </button>
               </div>
               <div className="flex items-start gap-2">
@@ -374,9 +398,10 @@ export function EmailView() {
                 </div>
               )}
               {unsubscribeUrl && (
-                <div className="flex items-center gap-2 pt-1.5 border-t border-black/5 dark:border-white/10">
+                <div className="flex items-center gap-2 pt-2 border-t border-black/5 dark:border-white/10">
                   <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">Đăng ký:</span>
                   <button
+                    type="button"
                     onClick={handleUnsubscribe}
                     className="text-xs font-semibold text-danger hover:underline flex items-center gap-1"
                   >
