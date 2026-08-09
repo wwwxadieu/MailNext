@@ -80,13 +80,8 @@ export function EmailView() {
     setSummarizing(true);
     setSummaryError(null);
     try {
-      const apiKey = await repo.getSetting("anthropic_api_key");
-      if (!apiKey) {
-        setSummaryError("Add an Anthropic API key in Settings > AI Summary first.");
-        return;
-      }
       const plainText = extractPlainText(message.body_text, message.body_html);
-      const result = await commands.summarizeEmail(apiKey, message.subject, plainText);
+      const result = await commands.summarizeEmail(message.subject, plainText);
       setSummary(result);
     } catch (err) {
       setSummaryError(err instanceof Error ? err.message : String(err));

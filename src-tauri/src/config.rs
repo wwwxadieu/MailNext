@@ -73,3 +73,11 @@ pub fn oauth_config_for(provider: Provider) -> Result<OAuthClientConfig, String>
         ),
     }
 }
+
+/// API key for Claude (Anthropic) email summaries. Configured once by
+/// whoever builds/runs MailNext — the same environment-variable pattern used
+/// for the OAuth client credentials above — so individual users never see or
+/// enter a key themselves.
+pub fn anthropic_api_key() -> Option<String> {
+    env_var("MAILNEXT_ANTHROPIC_API_KEY").or_else(|| env_var("ANTHROPIC_API_KEY"))
+}

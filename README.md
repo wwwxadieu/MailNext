@@ -13,7 +13,7 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 - **Native Windows 11 toast notifications** plus synthesized audio chimes (Web Audio API — no bundled sound assets) for new mail, driven by a background IMAP poller.
 - **Local-first cache**: accounts, folders, messages, labels and signatures are cached in SQLite via `@tauri-apps/plugin-sql`.
 - **In-place auto-updates**: MailNext checks for new versions in the background, downloads the update inside the running app (no browser, no installer wizard), installs it silently, and only needs a one-click restart to finish — with a live progress bar showing bytes downloaded and download speed.
-- **AI email summaries**: a one-click "Summarize" action on any open message, powered by Claude (Anthropic). Uses your own Anthropic API key (Settings → AI Summary) — a message's subject and body are only sent to Anthropic when you click Summarize.
+- **AI email summaries**: a one-click "Summarize" action on any open message, powered by Claude (Anthropic). No per-user setup — configured once at build time; a message's subject and body are only sent to Anthropic when you click Summarize.
 
 ## Tech stack
 
@@ -59,7 +59,13 @@ iCloud Mail and custom/enterprise servers don't need any of the above: sign in w
 
 ### AI email summaries (optional)
 
-Unlike the OAuth2 clients above, the AI summary feature needs no build-time configuration — each user pastes their own [Anthropic API key](https://console.anthropic.com) into **Settings → AI Summary** at runtime. The key is stored locally in SQLite and sent only to `api.anthropic.com`, only when that user clicks **Summarize**. Leaving the key unset simply leaves the feature unused; no other part of the app depends on it.
+Like the OAuth2 clients above, this is configured once by whoever builds/runs MailNext, not by end users:
+
+| Variable | Register at |
+| -------- | ----------- |
+| `MAILNEXT_ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
+
+With the variable set, the **Summarize** action on any open message sends its subject and body to `api.anthropic.com` (Claude Haiku 4.5) and shows a short summary — no key entry, no per-user setup. Leave it unset and the feature simply reports itself unavailable in **Settings → AI Summary**; nothing else in the app depends on it.
 
 ### Run in development
 

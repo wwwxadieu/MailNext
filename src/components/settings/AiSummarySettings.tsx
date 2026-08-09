@@ -1,41 +1,13 @@
 import { useEffect, useState } from "react";
-import { Check, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { TextField } from "@/components/ui/TextField";
-import { getSetting, setSetting } from "@/lib/repository";
+import { CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import * as commands from "@/lib/commands";
 
 export function AiSummarySettings() {
-  const [apiKey, setApiKey] = useState("");
-  const [savedKey, setSavedKey] = useState<string | null>(null);
-  const [reveal, setReveal] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "testing" | "saved" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [available, setAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    void getSetting("anthropic_api_key").then((value) => {
-      setSavedKey(value);
-      setApiKey(value ?? "");
-    });
+    void commands.aiSummaryAvailable().then(setAvailable);
   }, []);
-
-  async function handleSave() {
-    setStatus("testing");
-    setError(null);
-    try {
-      if (apiKey.trim()) {
-        await commands.summarizeEmail(apiKey.trim(), "Test", "This is a short test message to verify the API key works.");
-      }
-      await setSetting("anthropic_api_key", apiKey.trim());
-      setSavedKey(apiKey.trim());
-      setStatus("saved");
-    } catch (err) {
-      setStatus("error");
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  const dirty = apiKey !== (savedKey ?? "");
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,46 +16,29 @@ export function AiSummarySettings() {
         <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">AI email summaries</p>
       </div>
       <p className="text-xs text-neutral-500 dark:text-neutral-400">
-        Adds a "Summarize" action to every message, powered by Claude (Anthropic). Requires your own Anthropic API
-        key — get one at{" "}
-        <span className="text-neutral-700 dark:text-neutral-300">console.anthropic.com</span>. The subject and body
-        of a message are sent to Anthropic only when you click Summarize.
+        Adds a "Summarize" action to every message, powered by Claude (Anthropic). No setup needed on your
+        end — a message's subject and body are sent to Anthropic only when you click Summarize.
       </p>
 
-      <div className="flex items-end gap-2">
-        <TextField
-          label="Anthropic API key"
-          type={reveal ? "text" : "password"}
-          placeholder="sk-ant-..."
-          value={apiKey}
-          onChange={(e) => {
-            setApiKey(e.target.value);
-            setStatus("idle");
-          }}
-          className="flex-1"
-        />
-        <Button variant="ghost" size="md" onClick={() => setReveal((v) => !v)} aria-label="Toggle visibility">
-          {reveal ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-        </Button>
-      </div>
-
-      {error && <p className="text-xs text-danger">{error}</p>}
-      {status === "saved" && !dirty && (
-        <p className="flex items-center gap-1.5 text-xs text-success">
-          <Check size={13} strokeWidth={1.5} />
-          Key saved and verified
-        </p>
+      {available === true && (
+        <div className="flex items-center gap-2 rounded-xl border border-success/20 bg-success/5 p-3 text-sm text-neutral-700 dark:text-neutral-200">
+          <CheckCircle2 size={15} strokeWidth={1.5} className="flex-shrink-0 text-success" />
+          Ready — the Summarize button will work on any open message.
+        </div>
       )}
 
-      <Button variant="primary" size="sm" onClick={handleSave} disabled={status === "testing" || !dirty} className="w-fit">
-        {status === "testing" && <Loader2 size={13} className="animate-spin" strokeWidth={1.5} />}
-        {status === "testing" ? "Verifying…" : "Save key"}
-      </Button>
-
-      <p className="text-[11px] text-neutral-400">
-        Summaries use Claude Haiku — fast and inexpensive, well suited to short per-message summaries. Usage is
-        billed to your own Anthropic account.
-      </p>
+      {available === false && (
+        <div className="flex items-start gap-2 rounded-xl border border-danger/20 bg-danger/5 p-3 text-sm text-neutral-700 dark:text-neutral-200">
+          <XCircle size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-danger" />
+          <div>
+            <p>Not configured for this build.</p>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Whoever built MailNext needs to set the <code>MAILNEXT_ANTHROPIC_API_KEY</code> environment
+              variable and rebuild — see the README's "AI email summaries" section.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

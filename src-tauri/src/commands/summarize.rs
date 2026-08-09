@@ -1,10 +1,14 @@
 //! On-demand email summaries via the Claude API (Messages endpoint). Uses
 //! Claude Haiku 4.5 — fast and inexpensive, which fits a short, frequent
 //! per-email summarization call far better than a larger model. The API key
-//! is supplied by the user (stored locally via `plugin-sql` settings) and
-//! passed in per-request; MailNext never bundles a key of its own.
+//! is configured once by whoever builds/runs MailNext, via the
+//! `MAILNEXT_ANTHROPIC_API_KEY` environment variable (see `config.rs`) — the
+//! same pattern already used for the OAuth client credentials — so end
+//! users never see or enter a key of their own.
 
 use serde::{Deserialize, Serialize};
+
+use crate::config::anthropic_api_key;
 
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -55,11 +59,20 @@ fn truncate_body(body: &str) -> String {
     format!("{truncated}\n\n[…message truncated for summarization…]")
 }
 
+/// Whether the app build has an Anthropic API key configured, so the
+/// frontend can show/hide the Summarize action without needing to see the
+/// key itself.
 #[tauri::command]
-pub async fn summarize_email(api_key: String, subject: String, body: String) -> Result<String, String> {
-    if api_key.trim().is_empty() {
-        return Err("No Anthropic API key configured. Add one in Settings > AI Summary.".into());
-    }
+pub fn ai_summary_available() -> bool {
+    anthropic_api_key().is_some()
+}
+
+#[tauri::command]
+pub async fn summarize_email(subject: String, body: String) -> Result<String, String> {
+    let api_key = anthropic_api_key().ok_or(
+        "AI summaries aren't configured for this build. Whoever built MailNext needs to set \
+         the MAILNEXT_ANTHROPIC_API_KEY environment variable.",
+    )?;
     if body.trim().is_empty() {
         return Err("This message has no readable content to summarize.".into());
     }
