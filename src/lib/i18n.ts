@@ -176,6 +176,8 @@ const en: Dict = {
   "general.theme.light": "Light",
   "general.theme.dark": "Dark",
   "general.theme.system": "System",
+  "general.uiScale": "UI scale",
+  "general.uiScaleDescription": "Make the whole interface bigger or smaller.",
 
   "accounts.noAccounts": "No accounts yet",
   "accounts.addAccount": "Add account",
@@ -455,6 +457,8 @@ const vi: Dict = {
   "general.theme.light": "Sáng",
   "general.theme.dark": "Tối",
   "general.theme.system": "Hệ thống",
+  "general.uiScale": "Tỉ lệ giao diện",
+  "general.uiScaleDescription": "Phóng to hoặc thu nhỏ toàn bộ giao diện.",
 
   "accounts.noAccounts": "Chưa có tài khoản nào",
   "accounts.addAccount": "Thêm tài khoản",

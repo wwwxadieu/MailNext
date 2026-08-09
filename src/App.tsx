@@ -14,6 +14,7 @@ import { UpdateBanner } from "@/components/update/UpdateBanner";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
+import { useUiScaleStore } from "@/store/useUiScaleStore";
 import { useLocaleStore } from "@/store/useLocaleStore";
 import { useUpdateStore } from "@/store/useUpdateStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -33,6 +34,7 @@ interface NewMailEvent {
 
 export default function App() {
   const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const hydrateUiScale = useUiScaleStore((s) => s.hydrate);
   const hydrateLocale = useLocaleStore((s) => s.hydrate);
   const hydrateAccounts = useAccountStore((s) => s.hydrate);
   const hydrated = useAccountStore((s) => s.hydrated);
@@ -48,12 +50,16 @@ export default function App() {
   const [welcomeSeen, setWelcomeSeen] = useState(true);
 
   useEffect(() => {
-    void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts(), getSetting("welcome_seen")]).then(
-      ([, , , seen]) => {
-        setWelcomeSeen(seen === "true");
-        setBootstrapped(true);
-      },
-    );
+    void Promise.all([
+      hydrateTheme(),
+      hydrateUiScale(),
+      hydrateLocale(),
+      hydrateAccounts(),
+      getSetting("welcome_seen"),
+    ]).then(([, , , , seen]) => {
+      setWelcomeSeen(seen === "true");
+      setBootstrapped(true);
+    });
   }, []);
 
   function dismissWelcome() {
