@@ -22,7 +22,10 @@
         "transparent": true,
         "shadow": true,
         "center": true,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "windowEffects": {
+          "effects": ["mica"]
+        }
       }
     ],
     "security": {
