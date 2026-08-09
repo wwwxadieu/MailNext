@@ -165,6 +165,54 @@ fn decode_modified_base64(chunk: &str) -> Option<String> {
     String::from_utf16(&units).ok()
 }
 
+/// Converts HTML to plain text for the message-preview snippet, skipping
+/// `<style>`/`<script>` block contents entirely (unlike `mail-parser`'s own
+/// html-to-text fallback, which doesn't).
+fn strip_html_to_text(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let lower = html.to_ascii_lowercase();
+    let mut i = 0;
+    while i < html.len() {
+        if html.as_bytes()[i] == b'<' {
+            if lower[i..].starts_with("<style") {
+                match lower[i..].find("</style>") {
+                    Some(end) => i += end + "</style>".len(),
+                    None => break,
+                }
+            } else if lower[i..].starts_with("<script") {
+                match lower[i..].find("</script>") {
+                    Some(end) => i += end + "</script>".len(),
+                    None => break,
+                }
+            } else {
+                match html[i..].find('>') {
+                    Some(end) => {
+                        result.push(' ');
+                        i += end + 1;
+                    }
+                    None => break,
+                }
+            }
+        } else {
+            let next_lt = html[i..].find('<').map(|p| i + p).unwrap_or(html.len());
+            result.push_str(&html[i..next_lt]);
+            i = next_lt;
+        }
+    }
+    decode_html_entities(&result)
+}
+
+fn decode_html_entities(input: &str) -> String {
+    input
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+}
+
 fn classify_special_use(path: &str) -> Option<String> {
     let upper = path.to_uppercase();
     if upper.contains("INBOX") && !upper.contains('/') {
@@ -289,8 +337,18 @@ pub(crate) async fn fetch_messages(
 
             let body_text = parsed.body_text(0).map(|c| c.to_string());
             let body_html = parsed.body_html(0).map(|c| c.to_string());
-            let snippet = body_text
-                .clone()
+            // Prefer stripping the raw HTML ourselves for the preview snippet:
+            // `body_text()` falls back to the `mail-parser` crate's own
+            // html-to-text conversion when there's no genuine text/plain
+            // part, and that conversion doesn't skip <style>/<script>
+            // blocks — leaking raw CSS into message previews for any HTML
+            // email that puts a <style> tag in the body (common for
+            // Outlook-compatible newsletters).
+            let snippet_source = body_html
+                .as_deref()
+                .map(strip_html_to_text)
+                .or_else(|| body_text.clone());
+            let snippet = snippet_source
                 .unwrap_or_default()
                 .split_whitespace()
                 .collect::<Vec<_>>()

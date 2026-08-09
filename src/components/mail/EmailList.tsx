@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
-import { ListFilter, Loader2, RefreshCw, Search } from "lucide-react";
+import { ListFilter, Loader2, Paperclip, RefreshCw, Search, Star } from "lucide-react";
 import clsx from "clsx";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
+import { SenderAvatar } from "@/components/mail/SenderAvatar";
 import type { MessageRow } from "@/types/mail";
+
+type QuickFilter = "all" | "unread" | "flagged" | "attachments";
 
 export function EmailList() {
   const t = useT();
@@ -24,6 +27,7 @@ export function EmailList() {
 
   const [query, setQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
 
   async function handleSync() {
@@ -39,16 +43,21 @@ export function EmailList() {
   }
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return messages;
-    const q = query.toLowerCase();
-    return messages.filter(
+    let result = messages;
+    if (quickFilter === "unread") result = result.filter((m) => m.is_read === 0);
+    else if (quickFilter === "flagged") result = result.filter((m) => m.is_flagged === 1);
+    else if (quickFilter === "attachments") result = result.filter((m) => m.has_attachments === 1);
+
+    const q = query.trim().toLowerCase();
+    if (!q) return result;
+    return result.filter(
       (m) =>
         m.subject.toLowerCase().includes(q) ||
         (m.from_name ?? "").toLowerCase().includes(q) ||
         (m.from_address ?? "").toLowerCase().includes(q) ||
         m.snippet.toLowerCase().includes(q),
     );
-  }, [messages, query]);
+  }, [messages, query, quickFilter]);
 
   function handleOpen(message: MessageRow) {
     selectMessage(message.id);
@@ -91,6 +100,31 @@ export function EmailList() {
             className="w-full bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
           />
         </div>
+        <div className="flex items-center gap-1.5">
+          {(
+            [
+              ["all", t("emailList.filterAll")],
+              ["unread", t("emailList.filterUnread")],
+              ["flagged", t("emailList.filterFlagged")],
+              ["attachments", t("emailList.filterAttachments")],
+            ] as [QuickFilter, string][]
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setQuickFilter(value)}
+              className={clsx(
+                "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                quickFilter === value
+                  ? "bg-accent text-white"
+                  : "bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
+              )}
+            >
+              {value === "flagged" && <Star size={10} strokeWidth={2} />}
+              {value === "attachments" && <Paperclip size={10} strokeWidth={2} />}
+              {label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -112,41 +146,44 @@ export function EmailList() {
             key={message.id}
             onClick={() => handleOpen(message)}
             className={clsx(
-              "flex w-full flex-col gap-1 border-b border-black/5 px-4 py-3 text-left transition-colors dark:border-white/5",
+              "flex w-full items-start gap-2.5 border-b border-black/5 px-4 py-3 text-left transition-colors dark:border-white/5",
               message.id === selectedMessageId
                 ? "bg-accent/10"
                 : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
             )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span
-                className={clsx(
-                  "truncate text-[13px]",
-                  message.is_read === 0
-                    ? "font-semibold text-neutral-900 dark:text-neutral-50"
-                    : "font-medium text-neutral-600 dark:text-neutral-300",
-                )}
-              >
-                {message.from_name || message.from_address || t("app.unknownSender")}
-              </span>
-              <span className="flex-shrink-0 text-[11px] text-neutral-400 tabular-nums">
-                {safeDistance(message.date)}
-              </span>
+            <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="mt-0.5" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={clsx(
+                    "truncate text-[13px]",
+                    message.is_read === 0
+                      ? "font-semibold text-neutral-900 dark:text-neutral-50"
+                      : "font-medium text-neutral-600 dark:text-neutral-300",
+                  )}
+                >
+                  {message.from_name || message.from_address || t("app.unknownSender")}
+                </span>
+                <span className="flex-shrink-0 text-[11px] text-neutral-400 tabular-nums">
+                  {safeDistance(message.date)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {message.is_read === 0 && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />}
+                <span
+                  className={clsx(
+                    "truncate text-[13px]",
+                    message.is_read === 0
+                      ? "text-neutral-800 dark:text-neutral-100"
+                      : "text-neutral-500 dark:text-neutral-400",
+                  )}
+                >
+                  {message.subject}
+                </span>
+              </div>
+              <p className="truncate text-[12px] text-neutral-400">{message.snippet}</p>
             </div>
-            <div className="flex items-center gap-1.5">
-              {message.is_read === 0 && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />}
-              <span
-                className={clsx(
-                  "truncate text-[13px]",
-                  message.is_read === 0
-                    ? "text-neutral-800 dark:text-neutral-100"
-                    : "text-neutral-500 dark:text-neutral-400",
-                )}
-              >
-                {message.subject}
-              </span>
-            </div>
-            <p className="truncate text-[12px] text-neutral-400">{message.snippet}</p>
           </button>
         ))}
       </div>

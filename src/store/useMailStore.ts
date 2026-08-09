@@ -74,7 +74,11 @@ export const useMailStore = create<MailState>((set, get) => ({
   selectFolder: (folderId) => set({ selectedFolderId: folderId, selectedMessageId: null }),
 
   loadMessages: async (account, folder) => {
-    set({ isLoadingMessages: true, error: null });
+    // Show whatever's already cached immediately so switching folders (or a
+    // cold start) doesn't block on the network round-trip below — the fresh
+    // fetch below patches `messages` again once it lands.
+    const cached = await repo.listMessages(folder.id);
+    set({ messages: cached, isLoadingMessages: true, error: null });
     try {
       const connection = toImapConnection(account);
       const remoteMessages = await commands.imapFetchMessages(connection, folder.path, 50, 0);
