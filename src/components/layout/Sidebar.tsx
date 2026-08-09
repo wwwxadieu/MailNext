@@ -4,12 +4,15 @@ import {
   FilePenLine,
   Folder,
   Inbox,
+  Megaphone,
   Pencil,
   Plus,
   Send,
   Settings,
   ShieldAlert,
+  ShoppingBag,
   Trash2,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import clsx from "clsx";
@@ -31,6 +34,9 @@ const folderIcons: Record<SpecialUse, LucideIcon> = {
   trash: Trash2,
   junk: ShieldAlert,
   archive: Archive,
+  promotions: Megaphone,
+  social: Users,
+  shopping: ShoppingBag,
 };
 
 export function Sidebar() {

@@ -31,6 +31,9 @@ const en: Dict = {
   "folder.trash": "Trash",
   "folder.junk": "Junk",
   "folder.archive": "Archive",
+  "folder.promotions": "Promotions",
+  "folder.social": "Social",
+  "folder.shopping": "Shopping",
 
   "emailList.selectFolder": "Select a folder",
   "emailList.searchPlaceholder": "Search mail",
@@ -239,6 +242,9 @@ const vi: Dict = {
   "folder.trash": "Thùng rác",
   "folder.junk": "Thư rác",
   "folder.archive": "Lưu trữ",
+  "folder.promotions": "Quảng cáo",
+  "folder.social": "Mạng xã hội",
+  "folder.shopping": "Mua sắm",
 
   "emailList.selectFolder": "Chọn một thư mục",
   "emailList.searchPlaceholder": "Tìm kiếm thư",

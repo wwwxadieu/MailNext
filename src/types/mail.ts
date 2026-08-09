@@ -34,7 +34,16 @@ export interface FolderInfo {
   totalCount: number;
 }
 
-export type SpecialUse = "inbox" | "sent" | "drafts" | "trash" | "junk" | "archive";
+export type SpecialUse =
+  | "inbox"
+  | "sent"
+  | "drafts"
+  | "trash"
+  | "junk"
+  | "archive"
+  | "promotions"
+  | "social"
+  | "shopping";
 
 export interface EmailAddress {
   name: string | null;

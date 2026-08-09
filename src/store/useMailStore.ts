@@ -3,6 +3,7 @@ import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
 import * as repo from "@/lib/repository";
 import { applyRulesToNewMessages } from "@/lib/rules";
+import { ensureDefaultCategoryFolders } from "@/lib/categoryFolders";
 import type { Account, FolderRow, MessageRow } from "@/types/mail";
 
 interface MailState {
@@ -22,6 +23,14 @@ interface MailState {
   toggleFlag: (account: Account, folder: FolderRow, message: MessageRow) => Promise<void>;
 }
 
+// Guards `loadFolders` against overlapping calls for the same account —
+// React StrictMode's intentional double-effect in dev, or a user switching
+// accounts back and forth before the first call settles. Without this, two
+// calls can each finish with a different snapshot of `folders` (one may
+// have raced ahead of the other's inserts) and whichever calls `set()`
+// last silently wins, even if it's the staler one.
+const loadFoldersInFlight = new Set<string>();
+
 export const useMailStore = create<MailState>((set, get) => ({
   folders: [],
   messages: [],
@@ -32,12 +41,22 @@ export const useMailStore = create<MailState>((set, get) => ({
   error: null,
 
   loadFolders: async (account) => {
+    if (loadFoldersInFlight.has(account.id)) return;
+    loadFoldersInFlight.add(account.id);
     set({ isLoadingFolders: true, error: null });
     try {
       const connection = toImapConnection(account);
       const remoteFolders = await commands.imapListFolders(connection);
       await repo.syncFolders(account.id, remoteFolders);
-      const folders = await repo.listFolders(account.id);
+      let folders = await repo.listFolders(account.id);
+
+      try {
+        const provisioned = await ensureDefaultCategoryFolders(account, connection, folders);
+        if (provisioned) folders = await repo.listFolders(account.id);
+      } catch {
+        // Best-effort — the account still works fine without the default categories.
+      }
+
       set({ folders, isLoadingFolders: false });
 
       const inbox = folders.find((f) => f.special_use === "inbox") ?? folders[0];
@@ -47,6 +66,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       }
     } catch (err) {
       set({ isLoadingFolders: false, error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      loadFoldersInFlight.delete(account.id);
     }
   },
 

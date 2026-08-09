@@ -12,6 +12,7 @@ import type {
   RuleCondition,
   RuleRow,
   SignatureRow,
+  SpecialUse,
 } from "@/types/mail";
 
 export function newId(): string {
@@ -131,11 +132,12 @@ export async function createFolderRecord(
   accountId: string,
   name: string,
   path: string,
+  specialUse: SpecialUse | null = null,
 ): Promise<FolderRow> {
   const id = newId();
   await dbExecute(
-    "INSERT INTO folders (id, account_id, name, path, special_use, unread_count, total_count, sort_order) VALUES (?, ?, ?, ?, NULL, 0, 0, 999)",
-    [id, accountId, name, path],
+    "INSERT INTO folders (id, account_id, name, path, special_use, unread_count, total_count, sort_order) VALUES (?, ?, ?, ?, ?, 0, 0, 999)",
+    [id, accountId, name, path, specialUse],
   );
   const [folder] = await dbSelect<FolderRow>("SELECT * FROM folders WHERE id = ?", [id]);
   if (!folder) throw new Error("Failed to create folder");
