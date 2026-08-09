@@ -38,6 +38,7 @@ export default function App() {
   const accounts = useAccountStore((s) => s.accounts);
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const folders = useMailStore((s) => s.folders);
+  const loadFolders = useMailStore((s) => s.loadFolders);
   const loadMessages = useMailStore((s) => s.loadMessages);
 
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
@@ -48,6 +49,12 @@ export default function App() {
   useEffect(() => {
     void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts()]).then(() => setBootstrapped(true));
   }, []);
+
+  // Automatically load folders and messages on app launch or active account switch
+  useEffect(() => {
+    if (!activeAccount) return;
+    void loadFolders(activeAccount);
+  }, [activeAccount?.id]);
 
   // Check for app updates shortly after launch, then periodically in the
   // background — never in the middle of a download already in progress.

@@ -70,6 +70,21 @@ export const useMailStore = create<MailState>((set, get) => ({
       set({ folderSyncProgress: event.payload });
     });
     try {
+      // 1. Immediately hydrate cached folders & messages from local SQLite DB so UI populates instantly
+      const cachedFolders = await repo.listFolders(account.id);
+      if (cachedFolders.length > 0) {
+        set({ folders: cachedFolders, isLoadingFolders: false });
+        const cachedInbox = cachedFolders.find((f) => f.special_use === "inbox") ?? cachedFolders[0];
+        if (cachedInbox && !get().selectedFolderId) {
+          get().selectFolder(cachedInbox.id);
+          const cachedMessages = await repo.listMessages(cachedInbox.id);
+          if (cachedMessages.length > 0) {
+            set({ messages: cachedMessages });
+          }
+        }
+      }
+
+      // 2. Fetch fresh folders from remote IMAP server
       const connection = toImapConnection(account);
       const remoteFolders = await commands.imapListFolders(connection);
       await repo.syncFolders(account.id, remoteFolders);
