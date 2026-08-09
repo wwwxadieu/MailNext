@@ -32,6 +32,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
+    "createUpdaterArtifacts": true,
     "publisher": "MailNext",
     "copyright": "Copyright © 2026 MailNext",
     "category": "Productivity",
@@ -58,6 +59,16 @@
     "deep-link": {
       "desktop": {
         "schemes": ["mailnext"]
+      }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/wwwxadieu/MailNext/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERBNjdDNEIxRjQ2NDMxQTcKUldTbk1XVDBzY1JuMnUxNGhGcUs3UmRMWGdTS3NVekpZa2REdENSSFoxN3QzK3B3STRhSGlnNjQK",
+      "windows": {
+        "installMode": "quiet"
       }
     }
   }

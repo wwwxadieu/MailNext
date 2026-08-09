@@ -1,10 +1,11 @@
 import clsx from "clsx";
-import { Bell, PenLine, Tag } from "lucide-react";
+import { Bell, PenLine, RefreshCw, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { SignatureEditor } from "@/components/settings/SignatureEditor";
 import { LabelManager } from "@/components/settings/LabelManager";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
+import { UpdateSettings } from "@/components/settings/UpdateSettings";
 import { useUiStore } from "@/store/useUiStore";
 import type { SettingsPanel } from "@/store/useUiStore";
 
@@ -12,6 +13,7 @@ const TABS: { id: Exclude<SettingsPanel, null>; label: string; icon: LucideIcon 
   { id: "signatures", label: "Signatures", icon: PenLine },
   { id: "labels", label: "Labels", icon: Tag },
   { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "updates", label: "Updates", icon: RefreshCw },
 ];
 
 export function SettingsModal() {
@@ -43,6 +45,7 @@ export function SettingsModal() {
           {panel === "signatures" && <SignatureEditor />}
           {panel === "labels" && <LabelManager />}
           {panel === "notifications" && <NotificationSettings />}
+          {panel === "updates" && <UpdateSettings />}
         </div>
       </div>
     </Modal>

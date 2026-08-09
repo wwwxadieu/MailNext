@@ -12,6 +12,7 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 - **Settings**: signature editor, color-coded label manager, and notification/sound preferences.
 - **Native Windows 11 toast notifications** plus synthesized audio chimes (Web Audio API — no bundled sound assets) for new mail, driven by a background IMAP poller.
 - **Local-first cache**: accounts, folders, messages, labels and signatures are cached in SQLite via `@tauri-apps/plugin-sql`.
+- **In-place auto-updates**: MailNext checks for new versions in the background, downloads the update inside the running app (no browser, no installer wizard), installs it silently, and only needs a one-click restart to finish — with a live progress bar showing bytes downloaded and download speed.
 
 ## Tech stack
 
@@ -23,6 +24,7 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 | Storage        | SQLite via `@tauri-apps/plugin-sql`                                     |
 | Mail protocols | `async-imap`, `lettre` (SMTP), `oauth2` (OAuth2 + PKCE)                 |
 | Notifications  | `@tauri-apps/plugin-notification` (native toasts) + Web Audio chimes   |
+| Updates        | `@tauri-apps/plugin-updater` + `@tauri-apps/plugin-process` (silent NSIS install + relaunch) |
 | Icons          | [Lucide React](https://lucide.dev) only — no emoji anywhere in the UI  |
 
 ## Getting started
@@ -67,6 +69,41 @@ npm run tauri build
 
 Produces NSIS and MSI installers under `src-tauri/target/release/bundle/`.
 
+## Auto-updates
+
+MailNext ships with an in-app updater (`@tauri-apps/plugin-updater`) instead of asking users to redownload and reinstall the app by hand:
+
+1. On launch (and every 4 hours after), the app polls the update manifest configured in `src-tauri/tauri.conf.json` under `plugins.updater.endpoints`.
+2. When a newer version is found, a glass banner offers **Update now**. Downloading happens in place — no browser tab, no installer window — while a progress bar reports bytes downloaded, percentage, and a rolling download-speed estimate (`src/lib/updater.ts`, `src/components/update/UpdateBanner.tsx`).
+3. On Windows the NSIS update package installs **silently** (`plugins.updater.windows.installMode: "quiet"` in `tauri.conf.json`) — nothing for the user to click through.
+4. Once installed, the banner switches to **Restart now**, which relaunches the app (via `@tauri-apps/plugin-process`) straight into the new version.
+
+The same status is also available anytime under **Settings → Updates**.
+
+### Publishing a release
+
+The updater endpoint (`https://github.com/<owner>/<repo>/releases/latest/download/latest.json`) is populated by [`.github/workflows/release.yml`](.github/workflows/release.yml), which runs [`tauri-apps/tauri-action`](https://github.com/tauri-apps/tauri-action) whenever a `v*` tag is pushed. That action builds the NSIS/MSI installers, produces the signed updater artifacts (`.nsis.zip` + `.sig`), and uploads `latest.json` to the GitHub Release.
+
+Update artifacts must be signed so the app can verify they haven't been tampered with in transit. A signing keypair for this repo has already been generated and its **public** half is embedded in `tauri.conf.json` (`plugins.updater.pubkey`) — that part is safe to commit. To cut a real release you additionally need the **private** key, which is never committed:
+
+```bash
+# Generate once, store the output somewhere safe (a password manager, not the repo):
+npx tauri signer generate
+
+# Set as repository secrets under Settings → Secrets and variables → Actions:
+# TAURI_SIGNING_PRIVATE_KEY           (the private key contents)
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (only if you generated it with a password)
+```
+
+Then publishing a release is just:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+Because installers are small (Tauri apps are a few MB, not the tens/hundreds of MB typical of Electron apps) and the download happens over a direct HTTPS connection to the release asset, updates are fast even though this is a full-package update rather than a binary diff — Tauri doesn't support delta patching today, so "no re-downloading the whole app" here means no manual redownload/reinstall step for the user, not a partial-file transfer.
+
 ## Project structure
 
 ```
@@ -75,12 +112,15 @@ src/                       React frontend
     onboarding/            Service grid, OAuth flow, password/custom sign-in
     layout/                Title bar, traffic lights, sidebar, folder modal
     mail/                  Email list, reader, compose
-    settings/               Signature editor, label manager, notification settings
+    settings/               Signature editor, label manager, notification/update settings
+    update/                 In-app update progress banner
     ui/                    Shared design-system primitives (Button, GlassPanel, Modal, ...)
     icons/                 Brand marks used in onboarding
-  lib/                     SQLite repository, Tauri command bindings, chime synthesis
-  store/                   Zustand stores (accounts, mail, theme, UI)
+  lib/                     SQLite repository, Tauri command bindings, chime synthesis, updater wrapper
+  store/                   Zustand stores (accounts, mail, theme, UI, updates)
   types/                   TypeScript types mirroring the Rust models
+
+.github/workflows/         CI release pipeline (builds, signs, publishes updater artifacts)
 
 src-tauri/                 Rust backend
   src/

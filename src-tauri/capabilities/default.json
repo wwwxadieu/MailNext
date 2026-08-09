@@ -5,6 +5,8 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:app:default",
+    "core:app:allow-version",
     "core:window:allow-close",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
@@ -32,6 +34,13 @@
     "opener:allow-open-url",
     "shell:allow-open",
     "deep-link:default",
-    "store:default"
+    "store:default",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install",
+    "updater:allow-download-and-install",
+    "process:default",
+    "process:allow-restart"
   ]
 }

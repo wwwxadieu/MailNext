@@ -7,9 +7,11 @@ import { EmailView } from "@/components/mail/EmailView";
 import { ComposeModal } from "@/components/mail/ComposeModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { UpdateBanner } from "@/components/update/UpdateBanner";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
+import { useUpdateStore } from "@/store/useUpdateStore";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
 import { getSetting } from "@/lib/repository";
@@ -33,10 +35,23 @@ export default function App() {
   const folders = useMailStore((s) => s.folders);
   const loadMessages = useMailStore((s) => s.loadMessages);
 
+  const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
+
   const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
     void Promise.all([hydrateTheme(), hydrateAccounts()]).then(() => setBootstrapped(true));
+  }, []);
+
+  // Check for app updates shortly after launch, then periodically in the
+  // background — never in the middle of a download already in progress.
+  useEffect(() => {
+    const initial = setTimeout(() => void checkForUpdates(), 5000);
+    const interval = setInterval(() => void checkForUpdates(), 4 * 60 * 60 * 1000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
   }, []);
 
   // Keep the background watcher pointed at whichever account/inbox is active.
@@ -79,15 +94,16 @@ export default function App() {
 
   if (accounts.length === 0) {
     return (
-      <div className="flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+      <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
         <TitleBar />
         <Onboarding onComplete={() => {}} />
+        <UpdateBanner />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
@@ -96,6 +112,7 @@ export default function App() {
       </div>
       <ComposeModal />
       <SettingsModal />
+      <UpdateBanner />
     </div>
   );
 }
