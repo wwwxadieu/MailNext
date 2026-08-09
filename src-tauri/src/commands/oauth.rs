@@ -119,7 +119,7 @@ pub async fn oauth_authorize(app: AppHandle, provider: String) -> Result<OAuthTo
         .set_pkce_verifier(PkceCodeVerifier::new(pkce_verifier.secret().clone()))
         .request_async(async_http_client)
         .await
-        .map_err(|e| format!("Token exchange failed: {e}"))?;
+        .map_err(|e| format!("Token exchange failed: {e:?}"))?;
 
     Ok(OAuthTokenResult {
         access_token: token.access_token().secret().clone(),
@@ -148,7 +148,7 @@ pub async fn oauth_refresh(provider: String, refresh_token: String) -> Result<OA
         .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
         .request_async(async_http_client)
         .await
-        .map_err(|e| format!("Token refresh failed: {e}"))?;
+        .map_err(|e| format!("Token refresh failed: {e:?}"))?;
 
     Ok(OAuthTokenResult {
         access_token: token.access_token().secret().clone(),

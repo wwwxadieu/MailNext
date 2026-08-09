@@ -107,7 +107,11 @@ export function ProviderAuthFlow({ provider, onBack, onUseAppPassword, onConnect
           onChange={(e) => setEmail(e.target.value)}
         />
 
-        {error && <p className="text-xs text-danger">{error}</p>}
+        {error && (
+          <p className="max-h-32 overflow-y-auto rounded-lg bg-danger/5 p-2 text-xs break-words text-danger">
+            {error}
+          </p>
+        )}
 
         <Button type="submit" variant="primary" size="lg" disabled={!canSubmit} className="mt-2">
           {status === "authorizing" && <Loader2 size={16} className="animate-spin" strokeWidth={1.5} />}
