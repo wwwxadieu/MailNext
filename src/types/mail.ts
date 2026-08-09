@@ -133,6 +133,7 @@ export interface FolderRow {
   unread_count: number;
   total_count: number;
   sort_order: number;
+  color?: string | null;
 }
 
 /** Row shape mirroring the `messages` SQLite table. */

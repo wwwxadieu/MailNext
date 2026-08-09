@@ -291,6 +291,8 @@ const en: Dict = {
   "profile.changeAvatar": "Change avatar",
   "profile.removeAvatar": "Remove avatar",
   "profile.imageTooLarge": "Image size should be under 2MB",
+  "folder.colorLabel": "Folder color",
+  "folder.markAllRead": "Mark all as read",
 };
 
 const vi: Dict = {
@@ -577,6 +579,8 @@ const vi: Dict = {
   "profile.changeAvatar": "Đổi ảnh đại diện",
   "profile.removeAvatar": "Xóa ảnh đại diện",
   "profile.imageTooLarge": "Dung lượng ảnh phải nhỏ hơn 2MB",
+  "folder.colorLabel": "Màu thư mục",
+  "folder.markAllRead": "Đánh dấu tất cả đã đọc",
 };
 
 export const translations: Record<Locale, Dict> = { en, vi };

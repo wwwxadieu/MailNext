@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import clsx from "clsx";
+import { FolderContextMenu } from "@/components/layout/FolderContextMenu";
 import { FolderModal } from "@/components/layout/FolderModal";
 import { ProfileModal } from "@/components/layout/ProfileModal";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -65,6 +66,8 @@ export function Sidebar() {
   const selectedFolderId = useMailStore((s) => s.selectedFolderId);
   const selectFolder = useMailStore((s) => s.selectFolder);
   const loadMessages = useMailStore((s) => s.loadMessages);
+  const setFolderColor = useMailStore((s) => s.setFolderColor);
+  const markAllFolderRead = useMailStore((s) => s.markAllFolderRead);
 
   const isComposing = useUiStore((s) => s.isComposing);
   const openSettings = useUiStore((s) => s.openSettings);
@@ -76,6 +79,12 @@ export function Sidebar() {
   const [systemCollapsed, setSystemCollapsed] = useState(false);
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
   const [customCollapsed, setCustomCollapsed] = useState(false);
+
+  const [folderContextMenu, setFolderContextMenu] = useState<{
+    x: number;
+    y: number;
+    folder: FolderRow;
+  } | null>(null);
 
   function handleSelectFolder(folder: FolderRow) {
     selectFolder(folder.id);
@@ -257,6 +266,10 @@ export function Sidebar() {
                   <button
                     key={folder.id}
                     onClick={() => handleSelectFolder(folder)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setFolderContextMenu({ x: e.clientX, y: e.clientY, folder });
+                    }}
                     className={clsx(
                       "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] transition-all duration-150",
                       isSelected
@@ -264,7 +277,12 @@ export function Sidebar() {
                         : "text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
                     )}
                   >
-                    <Icon size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                    <Icon
+                      size={15}
+                      strokeWidth={isSelected ? 2 : 1.5}
+                      className="flex-shrink-0"
+                      style={!isSelected && folder.color ? { color: folder.color } : undefined}
+                    />
                     <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
                     {folder.unread_count > 0 && (
                       <span
@@ -302,6 +320,10 @@ export function Sidebar() {
                     <button
                       key={folder.id}
                       onClick={() => handleSelectFolder(folder)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setFolderContextMenu({ x: e.clientX, y: e.clientY, folder });
+                      }}
                       className={clsx(
                         "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] transition-all duration-150",
                         isSelected
@@ -309,7 +331,12 @@ export function Sidebar() {
                           : "text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
                       )}
                     >
-                      <Icon size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                      <Icon
+                        size={15}
+                        strokeWidth={isSelected ? 2 : 1.5}
+                        className="flex-shrink-0"
+                        style={!isSelected && folder.color ? { color: folder.color } : undefined}
+                      />
                       <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
                       {folder.unread_count > 0 && (
                         <span
@@ -346,6 +373,10 @@ export function Sidebar() {
                   <button
                     key={folder.id}
                     onClick={() => handleSelectFolder(folder)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setFolderContextMenu({ x: e.clientX, y: e.clientY, folder });
+                    }}
                     className={clsx(
                       "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] transition-all duration-150",
                       isSelected
@@ -353,7 +384,14 @@ export function Sidebar() {
                         : "text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
                     )}
                   >
-                    <Folder size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                    {folder.color ? (
+                      <span
+                        className="h-2.5 w-2.5 flex-shrink-0 rounded-full shadow-sm"
+                        style={{ backgroundColor: folder.color }}
+                      />
+                    ) : (
+                      <Folder size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                    )}
                     <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
                     {folder.unread_count > 0 && (
                       <span
@@ -392,6 +430,18 @@ export function Sidebar() {
 
       <FolderModal />
       <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {folderContextMenu && (
+        <FolderContextMenu
+          x={folderContextMenu.x}
+          y={folderContextMenu.y}
+          folder={folderContextMenu.folder}
+          onClose={() => setFolderContextMenu(null)}
+          onSetColor={(color) => void setFolderColor(folderContextMenu.folder.id, color)}
+          onMarkAllRead={() => void markAllFolderRead(folderContextMenu.folder)}
+          onDeleteFolder={openFolderModal}
+        />
+      )}
     </aside>
   );
 }

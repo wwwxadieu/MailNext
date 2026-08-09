@@ -39,6 +39,8 @@ interface MailState {
   ) => Promise<void>;
   deleteMessagesPermanently: (account: Account, folder: FolderRow, messages: MessageRow[]) => Promise<void>;
   emptyFolder: (account: Account, folder: FolderRow) => Promise<void>;
+  setFolderColor: (folderId: string, color: string | null) => Promise<void>;
+  markAllFolderRead: (folder: FolderRow) => Promise<void>;
 }
 
 // Guards `loadFolders` against overlapping calls for the same account —
@@ -233,5 +235,23 @@ export const useMailStore = create<MailState>((set, get) => ({
     if (get().selectedFolderId === folder.id) {
       set({ messages: [], selectedMessageId: null });
     }
+  },
+
+  setFolderColor: async (folderId, color) => {
+    await repo.updateFolderColor(folderId, color);
+    set((state) => ({
+      folders: state.folders.map((f) => (f.id === folderId ? { ...f, color } : f)),
+    }));
+  },
+
+  markAllFolderRead: async (folder) => {
+    await repo.markAllMessagesReadInFolder(folder.id);
+    set((state) => ({
+      folders: state.folders.map((f) => (f.id === folder.id ? { ...f, unread_count: 0 } : f)),
+      messages:
+        state.selectedFolderId === folder.id
+          ? state.messages.map((m) => ({ ...m, is_read: 1 }))
+          : state.messages,
+    }));
   },
 }));

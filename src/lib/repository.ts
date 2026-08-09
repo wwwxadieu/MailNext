@@ -192,6 +192,15 @@ export async function deleteFolderRecord(folderId: string): Promise<void> {
   await dbExecute("DELETE FROM folders WHERE id = ?", [folderId]);
 }
 
+export async function updateFolderColor(folderId: string, color: string | null): Promise<void> {
+  await dbExecute("UPDATE folders SET color = ? WHERE id = ?", [color, folderId]);
+}
+
+export async function markAllMessagesReadInFolder(folderId: string): Promise<void> {
+  await dbExecute("UPDATE messages SET is_read = 1 WHERE folder_id = ?", [folderId]);
+  await dbExecute("UPDATE folders SET unread_count = 0 WHERE id = ?", [folderId]);
+}
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
