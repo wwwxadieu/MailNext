@@ -31,6 +31,14 @@ interface MailState {
   selectMessage: (messageId: string | null) => void;
   markRead: (account: Account, folder: FolderRow, message: MessageRow, isRead: boolean) => Promise<void>;
   toggleFlag: (account: Account, folder: FolderRow, message: MessageRow) => Promise<void>;
+  moveMessages: (
+    account: Account,
+    folder: FolderRow,
+    messages: MessageRow[],
+    destination: FolderRow,
+  ) => Promise<void>;
+  deleteMessagesPermanently: (account: Account, folder: FolderRow, messages: MessageRow[]) => Promise<void>;
+  emptyFolder: (account: Account, folder: FolderRow) => Promise<void>;
 }
 
 // Guards `loadFolders` against overlapping calls for the same account —
@@ -85,12 +93,25 @@ export const useMailStore = create<MailState>((set, get) => ({
         set({ syncStage: "idle", folderSyncProgress: null });
       }
     } catch (err) {
+      // Fall back to whatever folders are already cached locally — a
+      // transient network hiccup (very common right after the app
+      // restarts, e.g. right after an update) shouldn't blank out mail
+      // the user already had synced. Mirrors the same fallback already
+      // in `loadMessages` below.
+      const folders = await repo.listFolders(account.id);
       set({
+        folders,
         isLoadingFolders: false,
         error: err instanceof Error ? err.message : String(err),
         syncStage: "idle",
         folderSyncProgress: null,
       });
+
+      const inbox = folders.find((f) => f.special_use === "inbox") ?? folders[0];
+      if (inbox && !get().selectedFolderId) {
+        get().selectFolder(inbox.id);
+        await get().loadMessages(account, inbox);
+      }
     } finally {
       unlisten();
       loadFoldersInFlight.delete(account.id);
@@ -170,6 +191,47 @@ export const useMailStore = create<MailState>((set, get) => ({
       await commands.imapSetFlag(connection, folder.path, message.uid, "\\Flagged", next);
     } catch {
       // Local state already reflects the change; the next sync reconciles it.
+    }
+  },
+
+  moveMessages: async (account, folder, messages, destination) => {
+    const connection = toImapConnection(account);
+    const movedIds = new Set<string>();
+    for (const message of messages) {
+      try {
+        await commands.imapMoveMessage(connection, folder.path, message.uid, destination.path);
+        await repo.deleteMessage(message.id);
+        movedIds.add(message.id);
+      } catch {
+        // Leave it in place if the move fails — the next sync reconciles it.
+      }
+    }
+    set((state) => ({
+      messages: state.messages.filter((m) => !movedIds.has(m.id)),
+      selectedMessageId: movedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+    }));
+  },
+
+  deleteMessagesPermanently: async (account, folder, messages) => {
+    const connection = toImapConnection(account);
+    const uids = messages.map((m) => m.uid);
+    await commands.imapDeleteMessages(connection, folder.path, uids);
+    const deletedIds = new Set(messages.map((m) => m.id));
+    for (const id of deletedIds) {
+      await repo.deleteMessage(id);
+    }
+    set((state) => ({
+      messages: state.messages.filter((m) => !deletedIds.has(m.id)),
+      selectedMessageId: deletedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+    }));
+  },
+
+  emptyFolder: async (account, folder) => {
+    const connection = toImapConnection(account);
+    await commands.imapEmptyFolder(connection, folder.path);
+    await repo.deleteMessagesByFolder(folder.id);
+    if (get().selectedFolderId === folder.id) {
+      set({ messages: [], selectedMessageId: null });
     }
   },
 }));

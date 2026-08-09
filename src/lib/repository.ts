@@ -102,20 +102,21 @@ export async function updateAccountTokens(
 // ---------------------------------------------------------------------------
 
 // Priority MailNext gives each special-use folder in the sidebar, mirroring
-// how Gmail/Outlook group folders: primary mailbox actions first, inbox
-// category tabs next, then user-created folders (see `folderPriority`
-// below), with archive/junk/trash pinned to the bottom regardless of what
-// order the server's IMAP LIST response happens to return them in.
+// how Gmail/Outlook group folders: primary mailboxes (inbox/drafts/sent/
+// trash/archive — "All Mail") together at the top, inbox category tabs
+// next, then user-created folders (see `folderPriority` below), with junk
+// pinned to the bottom regardless of what order the server's IMAP LIST
+// response happens to return them in.
 const SPECIAL_USE_PRIORITY: Record<SpecialUse, number> = {
   inbox: 0,
   drafts: 1,
   sent: 2,
-  promotions: 3,
-  social: 4,
-  shopping: 5,
-  archive: 90,
+  trash: 3,
+  archive: 4,
+  promotions: 5,
+  social: 6,
+  shopping: 7,
   junk: 91,
-  trash: 92,
 };
 
 // Custom (non special-use) folders sort after every special-use folder, so
@@ -253,6 +254,10 @@ export async function deleteMessage(messageId: string): Promise<void> {
   await dbExecute("DELETE FROM messages WHERE id = ?", [messageId]);
 }
 
+export async function deleteMessagesByFolder(folderId: string): Promise<void> {
+  await dbExecute("DELETE FROM messages WHERE folder_id = ?", [folderId]);
+}
+
 // ---------------------------------------------------------------------------
 // Labels
 // ---------------------------------------------------------------------------
@@ -287,6 +292,10 @@ export async function addLabelToMessage(messageId: string, labelId: string): Pro
     "INSERT OR IGNORE INTO message_labels (message_id, label_id) VALUES (?, ?)",
     [messageId, labelId],
   );
+}
+
+export async function removeLabelFromMessage(messageId: string, labelId: string): Promise<void> {
+  await dbExecute("DELETE FROM message_labels WHERE message_id = ? AND label_id = ?", [messageId, labelId]);
 }
 
 export async function listLabelsForMessage(messageId: string): Promise<LabelRow[]> {

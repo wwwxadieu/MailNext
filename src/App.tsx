@@ -111,11 +111,11 @@ export default function App() {
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
       <TitleBar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
           aria-hidden={isReadingPaneExpanded}
           className={clsx(
-            "flex-shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out",
+            "flex h-full min-h-0 flex-shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out",
             isReadingPaneExpanded ? "pointer-events-none w-0 opacity-0" : "w-60 opacity-100",
           )}
         >
