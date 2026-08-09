@@ -115,34 +115,19 @@ export function Sidebar() {
     const role = detectSpecialUse(folder);
     if (role && SYSTEM_SPECIAL_USES.includes(role)) {
       const existing = systemMap.get(role);
-      if (!existing) {
+      if (!existing || folder.id === selectedFolderId || (folder.special_use && !existing.special_use)) {
         systemMap.set(role, { ...folder, special_use: role });
-      } else {
-        systemMap.set(role, {
-          ...existing,
-          unread_count: Math.max(existing.unread_count, folder.unread_count),
-        });
       }
     } else if (role && CATEGORY_SPECIAL_USES.includes(role)) {
       const existing = categoryMap.get(role);
-      if (!existing) {
+      if (!existing || folder.id === selectedFolderId || (folder.special_use && !existing.special_use)) {
         categoryMap.set(role, { ...folder, special_use: role });
-      } else {
-        categoryMap.set(role, {
-          ...existing,
-          unread_count: Math.max(existing.unread_count, folder.unread_count),
-        });
       }
     } else {
       const normKey = folder.name.trim().toLowerCase();
       const existing = customMap.get(normKey);
-      if (!existing) {
+      if (!existing || folder.id === selectedFolderId) {
         customMap.set(normKey, folder);
-      } else {
-        customMap.set(normKey, {
-          ...existing,
-          unread_count: Math.max(existing.unread_count, folder.unread_count),
-        });
       }
     }
   }

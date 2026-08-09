@@ -127,7 +127,14 @@ export const useMailStore = create<MailState>((set, get) => ({
     // cold start) doesn't block on the network round-trip below — the fresh
     // fetch below patches `messages` again once it lands.
     const cached = await repo.listMessages(folder.id);
-    set({ messages: cached, isLoadingMessages: true, error: null, syncStage: "messages" });
+    const cachedUnread = cached.filter((m) => m.is_read === 0).length;
+    set((state) => ({
+      messages: cached,
+      isLoadingMessages: true,
+      error: null,
+      syncStage: "messages",
+      folders: state.folders.map((f) => (f.id === folder.id ? { ...f, unread_count: cachedUnread } : f)),
+    }));
     try {
       const connection = toImapConnection(account);
       const remoteMessages = await commands.imapFetchMessages(connection, folder.path, 50, 0);
@@ -153,26 +160,42 @@ export const useMailStore = create<MailState>((set, get) => ({
       }
 
       const messages = await repo.listMessages(folder.id);
-      set({ messages, isLoadingMessages: false, syncStage: "idle", folderSyncProgress: null });
+      const actualUnread = messages.filter((m) => m.is_read === 0).length;
+      set((state) => ({
+        messages,
+        isLoadingMessages: false,
+        syncStage: "idle",
+        folderSyncProgress: null,
+        folders: state.folders.map((f) => (f.id === folder.id ? { ...f, unread_count: actualUnread } : f)),
+      }));
     } catch (err) {
       // Fall back to whatever is cached locally when the network call fails.
       const messages = await repo.listMessages(folder.id);
-      set({
+      const actualUnread = messages.filter((m) => m.is_read === 0).length;
+      set((state) => ({
         messages,
         isLoadingMessages: false,
         error: err instanceof Error ? err.message : String(err),
         syncStage: "idle",
         folderSyncProgress: null,
-      });
+        folders: state.folders.map((f) => (f.id === folder.id ? { ...f, unread_count: actualUnread } : f)),
+      }));
     }
   },
 
   selectMessage: (messageId) => set({ selectedMessageId: messageId }),
 
   markRead: async (account, folder, message, isRead) => {
+    const wasUnread = message.is_read === 0;
+    const diff = isRead ? (wasUnread ? -1 : 0) : wasUnread ? 0 : 1;
     await repo.setMessageReadState(message.id, isRead);
     set((state) => ({
       messages: state.messages.map((m) => (m.id === message.id ? { ...m, is_read: isRead ? 1 : 0 } : m)),
+      folders: state.folders.map((f) =>
+        f.id === folder.id || (f.special_use && folder.special_use && f.special_use === folder.special_use)
+          ? { ...f, unread_count: Math.max(0, f.unread_count + diff) }
+          : f,
+      ),
     }));
     try {
       const connection = toImapConnection(account);
@@ -199,11 +222,13 @@ export const useMailStore = create<MailState>((set, get) => ({
   moveMessages: async (account, folder, messages, destination) => {
     const connection = toImapConnection(account);
     const movedIds = new Set<string>();
+    let unreadMovedCount = 0;
     for (const message of messages) {
       try {
         await commands.imapMoveMessage(connection, folder.path, message.uid, destination.path);
         await repo.deleteMessage(message.id);
         movedIds.add(message.id);
+        if (message.is_read === 0) unreadMovedCount++;
       } catch {
         // Leave it in place if the move fails — the next sync reconciles it.
       }
@@ -211,20 +236,30 @@ export const useMailStore = create<MailState>((set, get) => ({
     set((state) => ({
       messages: state.messages.filter((m) => !movedIds.has(m.id)),
       selectedMessageId: movedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+      folders: state.folders.map((f) =>
+        f.id === folder.id ? { ...f, unread_count: Math.max(0, f.unread_count - unreadMovedCount) } : f,
+      ),
     }));
   },
 
   deleteMessagesPermanently: async (account, folder, messages) => {
     const connection = toImapConnection(account);
     const uids = messages.map((m) => m.uid);
+    let unreadDeletedCount = 0;
     await commands.imapDeleteMessages(connection, folder.path, uids);
     const deletedIds = new Set(messages.map((m) => m.id));
-    for (const id of deletedIds) {
-      await repo.deleteMessage(id);
+    for (const message of messages) {
+      if (deletedIds.has(message.id)) {
+        await repo.deleteMessage(message.id);
+        if (message.is_read === 0) unreadDeletedCount++;
+      }
     }
     set((state) => ({
       messages: state.messages.filter((m) => !deletedIds.has(m.id)),
       selectedMessageId: deletedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+      folders: state.folders.map((f) =>
+        f.id === folder.id ? { ...f, unread_count: Math.max(0, f.unread_count - unreadDeletedCount) } : f,
+      ),
     }));
   },
 
@@ -232,9 +267,12 @@ export const useMailStore = create<MailState>((set, get) => ({
     const connection = toImapConnection(account);
     await commands.imapEmptyFolder(connection, folder.path);
     await repo.deleteMessagesByFolder(folder.id);
-    if (get().selectedFolderId === folder.id) {
-      set({ messages: [], selectedMessageId: null });
-    }
+    await repo.markAllMessagesReadInFolder(folder.id);
+    set((state) => ({
+      folders: state.folders.map((f) => (f.id === folder.id ? { ...f, unread_count: 0, total_count: 0 } : f)),
+      messages: state.selectedFolderId === folder.id ? [] : state.messages,
+      selectedMessageId: state.selectedFolderId === folder.id ? null : state.selectedMessageId,
+    }));
   },
 
   setFolderColor: async (folderId, color) => {
