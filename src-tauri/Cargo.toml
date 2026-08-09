@@ -1,0 +1,66 @@
+[package]
+name = "mailnext"
+version = "0.2.0"
+description = "MailNext — a native email client for Windows 11."
+authors = ["MailNext"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "mailnext_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-store = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+futures = "0.3"
+
+# Mail protocols
+async-imap = { version = "0.10", default-features = false, features = ["runtime-tokio"] }
+tokio-native-tls = "0.3"
+native-tls = "0.2"
+mail-parser = { version = "0.9", features = ["full_encoding"] }
+lettre = { version = "0.11", default-features = false, features = [
+  "tokio1-native-tls",
+  "smtp-transport",
+  "builder",
+] }
+
+# OAuth2
+oauth2 = { version = "4.4", default-features = false, features = ["reqwest"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+tiny_http = "0.12"
+
+# Utilities
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+anyhow = "1"
+base64 = "0.22"
+rand = "0.8"
+url = "2"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
