@@ -28,6 +28,7 @@ import { RichTextEditor } from "@/components/mail/RichTextEditor";
 import { SenderAvatar } from "@/components/mail/SenderAvatar";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
+import { useThemeStore } from "@/store/useThemeStore";
 import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
@@ -133,8 +134,14 @@ export function EmailView() {
     setReplyBody((current) => `${current}<br><br>${signature.content_html}`);
   }
 
+  const appIsDark = useThemeStore((s) => s.resolved === "dark");
+  const effectiveIsDark = readingTheme === "light" ? false : readingTheme === "dark" ? true : appIsDark;
+
   function toggleReadingTheme() {
-    setReadingTheme((current) => (current === "auto" ? "light" : current === "light" ? "dark" : "auto"));
+    setReadingTheme((current) => {
+      const curIsDark = current === "light" ? false : current === "dark" ? true : appIsDark;
+      return curIsDark ? "light" : "dark";
+    });
   }
 
   function handleUnsubscribe() {
@@ -264,14 +271,14 @@ export function EmailView() {
             )}
 
             <ActionButton
-              label={`Nền đọc: ${readingTheme === "light" ? "Sáng" : readingTheme === "dark" ? "Tối" : "Tự động"}`}
+              label={`Nền đọc: ${effectiveIsDark ? "Tối" : "Sáng"}`}
               onClick={toggleReadingTheme}
               active={readingTheme !== "auto"}
             >
-              {readingTheme === "light" ? (
+              {effectiveIsDark ? (
                 <Sun size={15} strokeWidth={1.5} className="text-amber-500" />
               ) : (
-                <Moon size={15} strokeWidth={1.5} />
+                <Moon size={15} strokeWidth={1.5} className="text-indigo-400" />
               )}
             </ActionButton>
 

@@ -298,6 +298,22 @@ const en: Dict = {
   "emailView.unsubscribeToast": "Opened unsubscribe link in browser.",
   "emailView.showDetails": "Details",
   "emailView.hideDetails": "Hide details",
+
+  "backup.title": "Backup & Restore Data (Outlook PST Standard)",
+  "backup.description": "Export all account configurations, local email cache, filtering rules, signatures, and templates into a single backup file (.mnbak). Easily store offline or restore at any time.",
+  "backup.exportTitle": "Export Backup Data",
+  "backup.importTitle": "Restore from Backup",
+  "backup.exportButton": "Export Backup File (.mnbak)",
+  "backup.importButton": "Restore from File (.mnbak)",
+  "backup.exporting": "Exporting backup…",
+  "backup.importing": "Restoring data…",
+  "backup.successExport": "Backup exported successfully!",
+  "backup.successImport": "Data restored successfully!",
+  "backup.error": "An error occurred during backup:",
+
+  "accounts.active": "Active",
+  "accounts.switchTo": "Switch to account",
+  "accounts.activeAccount": "Active Account",
   "emailView.quickComposeTo": "Quick compose to {email}",
 };
 
@@ -592,6 +608,22 @@ const vi: Dict = {
   "emailView.unsubscribeToast": "Đã mở liên kết Hủy đăng ký trên trình duyệt.",
   "emailView.showDetails": "Chi tiết",
   "emailView.hideDetails": "Ẩn chi tiết",
+
+  "backup.title": "Sao lưu & Khôi phục dữ liệu (Chuẩn Outlook)",
+  "backup.description": "Xuất toàn bộ cấu hình tài khoản, bộ nhớ thư local, quy tắc lọc, chữ ký và mẫu thư thành 1 tệp sao lưu (.mnbak). Bạn có thể dễ dàng lưu trữ local hoặc khôi phục lại dữ liệu bất cứ lúc nào.",
+  "backup.exportTitle": "Xuất dữ liệu Sao lưu",
+  "backup.importTitle": "Khôi phục từ Sao lưu",
+  "backup.exportButton": "Xuất tệp sao lưu (.mnbak)",
+  "backup.importButton": "Khôi phục từ tệp (.mnbak)",
+  "backup.exporting": "Đang xuất sao lưu…",
+  "backup.importing": "Đang khôi phục…",
+  "backup.successExport": "Xuất sao lưu thành công!",
+  "backup.successImport": "Khôi phục dữ liệu thành công!",
+  "backup.error": "Đã xảy ra lỗi:",
+
+  "accounts.active": "Đang sử dụng",
+  "accounts.switchTo": "Chuyển dùng",
+  "accounts.activeAccount": "Tài khoản hiện tại",
   "emailView.quickComposeTo": "Soạn thư nhanh cho {email}",
 };
 
