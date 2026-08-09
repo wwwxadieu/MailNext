@@ -158,24 +158,24 @@ export function Sidebar() {
       <div className="relative mb-3">
         <button
           onClick={() => setIsProfileModalOpen(true)}
-          className="flex w-full items-center gap-2.5 rounded-xl bg-black/5 dark:bg-white/5 p-2 text-left transition-all hover:bg-black/10 dark:hover:bg-white/10 group"
+          className="flex w-full items-center gap-3 rounded-2xl bg-black/5 dark:bg-white/5 p-2.5 border border-black/5 dark:border-white/5 text-left transition-all hover:bg-black/10 dark:hover:bg-white/10 group"
           title={t("profile.editTitle") ?? "Chỉnh sửa hồ sơ"}
         >
           <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-xs text-white shadow-sm transition-transform group-hover:scale-105"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full font-bold text-sm text-white shadow-sm transition-transform group-hover:scale-105"
             style={{ backgroundColor: activeAccount?.color ?? "#0A84FF" }}
           >
             {activeAccount?.avatar_data ? (
               <img src={activeAccount.avatar_data} alt="Avatar" className="h-full w-full object-cover" />
             ) : (
-              <span>{activeAccount?.display_name?.[0]?.toUpperCase() || <User size={16} />}</span>
+              <span>{activeAccount?.display_name?.[0]?.toUpperCase() || <User size={18} />}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-accent transition-colors">
+            <span className="block truncate text-sm font-bold text-neutral-900 dark:text-neutral-50 group-hover:text-accent transition-colors">
               {activeAccount?.display_name ?? t("sidebar.noAccount")}
             </span>
-            <span className="block truncate text-[11px] text-neutral-400 font-normal">
+            <span className="block truncate text-xs text-neutral-400 font-medium mt-0.5">
               {activeAccount?.email}
             </span>
           </div>
@@ -184,7 +184,7 @@ export function Sidebar() {
         {accounts.length > 1 && (
           <button
             onClick={() => setAccountMenuOpen((v) => !v)}
-            className="absolute right-2 top-2.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+            className="absolute right-2.5 top-3.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
           >
             <ChevronDown size={14} />
           </button>
@@ -193,7 +193,7 @@ export function Sidebar() {
         {accountMenuOpen && accounts.length > 1 && (
           <>
             <div className="fixed inset-0 z-20" onClick={() => setAccountMenuOpen(false)} />
-            <div className="glass-panel-elevated absolute left-0 right-0 top-12 z-30 space-y-1 rounded-xl p-1.5 shadow-xl">
+            <div className="glass-panel-elevated absolute left-0 right-0 top-14 z-30 space-y-1 rounded-xl p-1.5 shadow-xl">
               {accounts.map((account) => (
                 <button
                   key={account.id}
@@ -218,21 +218,23 @@ export function Sidebar() {
       </div>
 
       {/* Animated Compose Quick Button */}
-      <button
-        onClick={() => openCompose()}
-        className={clsx(
-          "mb-4 flex h-9.5 w-full items-center justify-center gap-2 rounded-full text-xs font-semibold text-white shadow-md transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-accent/40",
-          isComposing
-            ? "bg-accent-hover scale-[1.02] shadow-accent/20 shadow-lg ring-2 ring-accent/50"
-            : "bg-accent hover:bg-accent-hover hover:scale-[1.02] hover:shadow-lg",
-        )}
-      >
-        <Pencil size={15} strokeWidth={2} className={clsx("transition-transform duration-300", isComposing && "rotate-12")} />
-        <span>{t("sidebar.compose")}</span>
-      </button>
+      <div className="mb-6 mt-1">
+        <button
+          onClick={() => openCompose()}
+          className={clsx(
+            "flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white shadow-md transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-accent/40",
+            isComposing
+              ? "bg-accent-hover scale-[1.02] shadow-accent/20 shadow-lg ring-2 ring-accent/50"
+              : "bg-accent hover:bg-accent-hover hover:scale-[1.02] hover:shadow-lg",
+          )}
+        >
+          <Pencil size={16} strokeWidth={2} className={clsx("transition-transform duration-300", isComposing && "rotate-12")} />
+          <span>{t("sidebar.compose")}</span>
+        </button>
+      </div>
 
       {/* Categorized Nav Folders */}
-      <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         {/* Group 1: System Mailboxes */}
         <div>
           <button
