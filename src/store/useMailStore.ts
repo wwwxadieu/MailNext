@@ -2,6 +2,7 @@ import { create } from "zustand";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
 import * as repo from "@/lib/repository";
+import { applyRulesToNewMessages } from "@/lib/rules";
 import type { Account, FolderRow, MessageRow } from "@/types/mail";
 
 interface MailState {
@@ -56,7 +57,19 @@ export const useMailStore = create<MailState>((set, get) => ({
     try {
       const connection = toImapConnection(account);
       const remoteMessages = await commands.imapFetchMessages(connection, folder.path, 50, 0);
+
+      // Diff against the local cache *before* writing it, so rules only ever
+      // see messages this device hasn't processed before — otherwise every
+      // sync would re-run rules against the whole folder and could stomp a
+      // user's own later edits (e.g. re-flagging something they unflagged).
+      const existingUids = await repo.listMessageUids(folder.id);
+      const newMessages = remoteMessages.filter((m) => !existingUids.has(m.uid));
+
       await repo.cacheMessages(account.id, folder.id, remoteMessages);
+      if (newMessages.length > 0) {
+        await applyRulesToNewMessages(account, folder, get().folders, newMessages);
+      }
+
       const messages = await repo.listMessages(folder.id);
       set({ messages, isLoadingMessages: false });
     } catch (err) {

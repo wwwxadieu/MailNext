@@ -8,6 +8,9 @@ import type {
   LabelRow,
   MessageRow,
   Provider,
+  RuleAction,
+  RuleCondition,
+  RuleRow,
   SignatureRow,
 } from "@/types/mail";
 
@@ -209,6 +212,17 @@ export function parseAddresses(json: string): EmailAddress[] {
   }
 }
 
+/** UIDs already cached for a folder — used to tell genuinely new messages
+ * (candidates for rule evaluation) from ones already synced before. */
+export async function listMessageUids(folderId: string): Promise<Set<number>> {
+  const rows = await dbSelect<{ uid: number }>("SELECT uid FROM messages WHERE folder_id = ?", [folderId]);
+  return new Set(rows.map((r) => r.uid));
+}
+
+export async function deleteMessage(messageId: string): Promise<void> {
+  await dbExecute("DELETE FROM messages WHERE id = ?", [messageId]);
+}
+
 // ---------------------------------------------------------------------------
 // Labels
 // ---------------------------------------------------------------------------
@@ -236,6 +250,23 @@ export async function updateLabelColor(labelId: string, color: string): Promise<
 
 export async function deleteLabel(labelId: string): Promise<void> {
   await dbExecute("DELETE FROM labels WHERE id = ?", [labelId]);
+}
+
+export async function addLabelToMessage(messageId: string, labelId: string): Promise<void> {
+  await dbExecute(
+    "INSERT OR IGNORE INTO message_labels (message_id, label_id) VALUES (?, ?)",
+    [messageId, labelId],
+  );
+}
+
+export async function listLabelsForMessage(messageId: string): Promise<LabelRow[]> {
+  return dbSelect<LabelRow>(
+    `SELECT labels.* FROM labels
+     JOIN message_labels ON message_labels.label_id = labels.id
+     WHERE message_labels.message_id = ?
+     ORDER BY labels.name ASC`,
+    [messageId],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -283,6 +314,53 @@ export async function setDefaultSignature(accountId: string, signatureId: string
 
 export async function deleteSignature(signatureId: string): Promise<void> {
   await dbExecute("DELETE FROM signatures WHERE id = ?", [signatureId]);
+}
+
+// ---------------------------------------------------------------------------
+// Rules
+// ---------------------------------------------------------------------------
+
+export async function listRules(accountId: string): Promise<RuleRow[]> {
+  return dbSelect<RuleRow>("SELECT * FROM rules WHERE account_id = ? ORDER BY sort_order ASC", [accountId]);
+}
+
+export interface NewRuleInput {
+  name: string;
+  matchType: "all" | "any";
+  conditions: RuleCondition[];
+  actions: RuleAction[];
+}
+
+export async function createRule(accountId: string, input: NewRuleInput): Promise<RuleRow> {
+  const id = newId();
+  const countRows = await dbSelect<{ count: number }>(
+    "SELECT COUNT(*) as count FROM rules WHERE account_id = ?",
+    [accountId],
+  );
+  const count = countRows[0]?.count ?? 0;
+  await dbExecute(
+    `INSERT INTO rules (id, account_id, name, enabled, sort_order, match_type, conditions_json, actions_json)
+     VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
+    [id, accountId, input.name, count, input.matchType, JSON.stringify(input.conditions), JSON.stringify(input.actions)],
+  );
+  const [rule] = await dbSelect<RuleRow>("SELECT * FROM rules WHERE id = ?", [id]);
+  if (!rule) throw new Error("Failed to create rule");
+  return rule;
+}
+
+export async function updateRule(ruleId: string, input: NewRuleInput): Promise<void> {
+  await dbExecute(
+    "UPDATE rules SET name = ?, match_type = ?, conditions_json = ?, actions_json = ? WHERE id = ?",
+    [input.name, input.matchType, JSON.stringify(input.conditions), JSON.stringify(input.actions), ruleId],
+  );
+}
+
+export async function setRuleEnabled(ruleId: string, enabled: boolean): Promise<void> {
+  await dbExecute("UPDATE rules SET enabled = ? WHERE id = ?", [enabled ? 1 : 0, ruleId]);
+}
+
+export async function deleteRule(ruleId: string): Promise<void> {
+  await dbExecute("DELETE FROM rules WHERE id = ?", [ruleId]);
 }
 
 // ---------------------------------------------------------------------------

@@ -164,3 +164,31 @@ export interface SignatureRow {
   content_text: string;
   is_default: number;
 }
+
+export type RuleField = "from" | "to" | "subject" | "body";
+export type RuleOperator = "contains" | "equals" | "starts_with";
+
+export interface RuleCondition {
+  field: RuleField;
+  operator: RuleOperator;
+  value: string;
+}
+
+export type RuleAction =
+  | { type: "move"; folderId: string }
+  | { type: "mark_read" }
+  | { type: "flag" }
+  | { type: "add_label"; labelId: string };
+
+/** Row shape mirroring the `rules` SQLite table. `conditions_json` /
+ * `actions_json` hold `RuleCondition[]` / `RuleAction[]`. */
+export interface RuleRow {
+  id: string;
+  account_id: string;
+  name: string;
+  enabled: number;
+  sort_order: number;
+  match_type: "all" | "any";
+  conditions_json: string;
+  actions_json: string;
+}

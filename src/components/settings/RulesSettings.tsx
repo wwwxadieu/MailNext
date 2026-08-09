@@ -1,0 +1,138 @@
+import { useEffect, useState } from "react";
+import { Filter, Pencil, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
+import { RuleEditor } from "@/components/settings/RuleEditor";
+import * as repo from "@/lib/repository";
+import { parseActions, parseConditions } from "@/lib/rules";
+import { useAccountStore } from "@/store/useAccountStore";
+import type { FolderRow, LabelRow, RuleAction, RuleCondition, RuleField, RuleRow } from "@/types/mail";
+
+const FIELD_LABELS: Record<RuleField, string> = { from: "From", to: "To", subject: "Subject", body: "Body" };
+const OPERATOR_LABELS: Record<RuleCondition["operator"], string> = {
+  contains: "contains",
+  equals: "is",
+  starts_with: "starts with",
+};
+
+function describeConditions(rule: RuleRow): string {
+  const conditions = parseConditions(rule.conditions_json);
+  const parts = conditions.map((c) => `${FIELD_LABELS[c.field]} ${OPERATOR_LABELS[c.operator]} "${c.value}"`);
+  return parts.join(rule.match_type === "all" ? " and " : " or ");
+}
+
+function describeActions(actions: RuleAction[], folders: FolderRow[], labels: LabelRow[]): string {
+  return actions
+    .map((action) => {
+      if (action.type === "mark_read") return "mark as read";
+      if (action.type === "flag") return "flag it";
+      if (action.type === "move") return `move to ${folders.find((f) => f.id === action.folderId)?.name ?? "folder"}`;
+      return `add label "${labels.find((l) => l.id === action.labelId)?.name ?? "?"}"`;
+    })
+    .join(", ");
+}
+
+export function RulesSettings() {
+  const activeAccount = useAccountStore((s) => s.activeAccount());
+  const [rules, setRules] = useState<RuleRow[]>([]);
+  const [folders, setFolders] = useState<FolderRow[]>([]);
+  const [labels, setLabels] = useState<LabelRow[]>([]);
+  const [editing, setEditing] = useState<RuleRow | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  async function refresh() {
+    if (!activeAccount) return;
+    const [ruleRows, folderRows, labelRows] = await Promise.all([
+      repo.listRules(activeAccount.id),
+      repo.listFolders(activeAccount.id),
+      repo.listLabels(activeAccount.id),
+    ]);
+    setRules(ruleRows);
+    setFolders(folderRows);
+    setLabels(labelRows);
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, [activeAccount?.id]);
+
+  async function handleToggle(rule: RuleRow) {
+    await repo.setRuleEnabled(rule.id, rule.enabled !== 1);
+    await refresh();
+  }
+
+  async function handleDelete(ruleId: string) {
+    await repo.deleteRule(ruleId);
+    await refresh();
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Filter size={15} strokeWidth={1.5} className="text-accent" />
+          <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">Rules</p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => setCreating(true)} disabled={!activeAccount}>
+          <Plus size={13} strokeWidth={1.5} />
+          New rule
+        </Button>
+      </div>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        Rules run automatically on new mail as it arrives in this account — move messages, mark them read, flag
+        them, or apply a label based on the sender, recipient, subject, or body.
+      </p>
+
+      <div className="flex flex-col gap-1.5">
+        {rules.map((rule) => (
+          <div
+            key={rule.id}
+            className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            <div className="pt-0.5">
+              <Switch checked={rule.enabled === 1} onChange={() => handleToggle(rule)} label={`Enable ${rule.name}`} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">{rule.name}</p>
+              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                If {describeConditions(rule)} → {describeActions(parseActions(rule.actions_json), folders, labels)}
+              </p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <button
+                onClick={() => setEditing(rule)}
+                aria-label={`Edit ${rule.name}`}
+                className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+              >
+                <Pencil size={14} strokeWidth={1.5} />
+              </button>
+              <button
+                onClick={() => handleDelete(rule.id)}
+                aria-label={`Delete ${rule.name}`}
+                className="text-neutral-400 hover:text-danger"
+              >
+                <Trash2 size={14} strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
+        ))}
+        {rules.length === 0 && <p className="px-2 py-2 text-xs text-neutral-400">No rules yet</p>}
+      </div>
+
+      {activeAccount && (creating || editing) && (
+        <RuleEditor
+          open
+          onClose={() => {
+            setCreating(false);
+            setEditing(null);
+          }}
+          accountId={activeAccount.id}
+          folders={folders}
+          labels={labels}
+          rule={editing}
+          onSaved={refresh}
+        />
+      )}
+    </div>
+  );
+}
