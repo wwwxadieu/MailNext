@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ListFilter, Loader2, Paperclip, RefreshCw, Search, Star } from "lucide-react";
+import { CheckSquare, ListFilter, Loader2, Paperclip, RefreshCw, Search, Square, Star, Tag, Trash2, X } from "lucide-react";
 import clsx from "clsx";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -7,6 +7,7 @@ import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
 import { SenderAvatar } from "@/components/mail/SenderAvatar";
+import { MessageContextMenu } from "@/components/mail/MessageContextMenu";
 import type { MessageRow } from "@/types/mail";
 
 type QuickFilter = "all" | "unread" | "flagged" | "attachments";
@@ -20,6 +21,10 @@ export function EmailList() {
   const selectedMessageId = useMailStore((s) => s.selectedMessageId);
   const selectMessage = useMailStore((s) => s.selectMessage);
   const markRead = useMailStore((s) => s.markRead);
+  const toggleFlag = useMailStore((s) => s.toggleFlag);
+  const moveMessages = useMailStore((s) => s.moveMessages);
+  const deleteMessagesPermanently = useMailStore((s) => s.deleteMessagesPermanently);
+  const emptyFolder = useMailStore((s) => s.emptyFolder);
   const isLoadingMessages = useMailStore((s) => s.isLoadingMessages);
   const loadFolders = useMailStore((s) => s.loadFolders);
   const loadMessages = useMailStore((s) => s.loadMessages);
@@ -30,7 +35,11 @@ export function EmailList() {
   const [query, setQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: MessageRow } | null>(null);
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
+  const isTrash = folder?.special_use === "trash";
 
   async function handleSync() {
     if (!activeAccount || isSyncing) return;
@@ -41,6 +50,65 @@ export function EmailList() {
       if (current) await loadMessages(activeAccount, current);
     } finally {
       setIsSyncing(false);
+    }
+  }
+
+  function exitSelection() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(messageId: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) next.delete(messageId);
+      else next.add(messageId);
+      return next;
+    });
+  }
+
+  /** Returns whether the deletion actually happened, so callers can tell a
+   * user-cancelled confirm dialog apart from a completed delete (and, e.g.,
+   * avoid clearing an active multi-select just because they hit "Cancel"). */
+  async function deleteTargets(targets: MessageRow[]): Promise<boolean> {
+    if (!activeAccount || !folder || targets.length === 0) return false;
+    if (isTrash) {
+      const confirmMsg =
+        targets.length === 1
+          ? t("emailList.confirmDeletePermanent")
+          : t("emailList.confirmDeleteSelectedPermanent", { count: targets.length });
+      if (!window.confirm(confirmMsg)) return false;
+      await deleteMessagesPermanently(activeAccount, folder, targets);
+    } else {
+      const trashFolder = folders.find((f) => f.special_use === "trash");
+      if (!trashFolder) return false;
+      await moveMessages(activeAccount, folder, targets, trashFolder);
+    }
+    return true;
+  }
+
+  async function handleEmptyTrash() {
+    if (!activeAccount || !folder) return;
+    if (!window.confirm(t("emailList.confirmEmptyTrash"))) return;
+    await emptyFolder(activeAccount, folder);
+  }
+
+  async function handleToolbarDelete() {
+    if (selectionMode && selectedIds.size > 0) {
+      const targets = messages.filter((m) => selectedIds.has(m.id));
+      const didDelete = await deleteTargets(targets);
+      if (didDelete) exitSelection();
+    } else if (selectedMessageId) {
+      const target = messages.find((m) => m.id === selectedMessageId);
+      if (target) await deleteTargets([target]);
+    }
+  }
+
+  async function handleSelectionMarkRead() {
+    if (!activeAccount || !folder) return;
+    const targets = messages.filter((m) => selectedIds.has(m.id));
+    for (const target of targets) {
+      await markRead(activeAccount, folder, target, true);
     }
   }
 
@@ -76,15 +144,31 @@ export function EmailList() {
   }, [messages, query, quickFilter]);
 
   function handleOpen(message: MessageRow) {
+    if (selectionMode) {
+      toggleSelected(message.id);
+      return;
+    }
     selectMessage(message.id);
     if (activeAccount && folder && message.is_read === 0) {
       void markRead(activeAccount, folder, message, true);
     }
   }
 
+  const canToolbarDelete = (selectionMode && selectedIds.size > 0) || (!selectionMode && !!selectedMessageId);
+
   return (
     <section className="solid-panel flex w-[360px] flex-shrink-0 flex-col rounded-none border-y-0">
       <header className="flex flex-shrink-0 flex-col gap-2 border-b border-black/5 dark:border-white/10 p-3">
+        <div className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
+          <Search size={14} strokeWidth={1.5} className="text-neutral-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("emailList.searchPlaceholder")}
+            className="w-full bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
+          />
+        </div>
+
         <div className="flex items-center justify-between gap-2">
           <h1 className="min-w-0 flex-1 truncate px-1 text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
             {folder ? (folder.special_use ? t(`folder.${folder.special_use}`) : folder.name) : t("emailList.selectFolder")}
@@ -99,23 +183,39 @@ export function EmailList() {
               <RefreshCw size={14} strokeWidth={1.5} className={clsx((isSyncing || syncStage !== "idle") && "animate-spin")} />
             </button>
             <button
+              onClick={() => openSettings("labels")}
+              title={t("emailList.labels")}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"
+            >
+              <Tag size={14} strokeWidth={1.5} />
+            </button>
+            <button
               onClick={() => openSettings("rules")}
               title={t("emailList.rules")}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"
             >
               <ListFilter size={14} strokeWidth={1.5} />
             </button>
+            <button
+              onClick={() => void handleToolbarDelete()}
+              disabled={!canToolbarDelete}
+              title={t("emailList.delete")}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-black/5 hover:text-danger disabled:opacity-40 dark:hover:bg-white/10"
+            >
+              <Trash2 size={14} strokeWidth={1.5} />
+            </button>
+            {isTrash && (
+              <button
+                onClick={() => void handleEmptyTrash()}
+                title={t("emailList.emptyTrash")}
+                className="flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-danger transition-colors hover:bg-danger/10"
+              >
+                {t("emailList.emptyTrash")}
+              </button>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
-          <Search size={14} strokeWidth={1.5} className="text-neutral-400" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("emailList.searchPlaceholder")}
-            className="w-full bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
-          />
-        </div>
+
         {syncLabel && (
           <div className="flex flex-col gap-1 px-1">
             <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
@@ -133,31 +233,60 @@ export function EmailList() {
             </div>
           </div>
         )}
-        <div className="flex items-center gap-1.5">
-          {(
-            [
-              ["all", t("emailList.filterAll")],
-              ["unread", t("emailList.filterUnread")],
-              ["flagged", t("emailList.filterFlagged")],
-              ["attachments", t("emailList.filterAttachments")],
-            ] as [QuickFilter, string][]
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setQuickFilter(value)}
-              className={clsx(
-                "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
-                quickFilter === value
-                  ? "bg-accent text-white"
-                  : "bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
-              )}
-            >
-              {value === "flagged" && <Star size={10} strokeWidth={2} />}
-              {value === "attachments" && <Paperclip size={10} strokeWidth={2} />}
-              {label}
-            </button>
-          ))}
-        </div>
+
+        {selectionMode ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-2.5 py-1.5">
+            <span className="text-[11px] font-medium text-accent">{t("selection.count", { count: selectedIds.size })}</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => void handleSelectionMarkRead()}
+                disabled={selectedIds.size === 0}
+                className="rounded-full px-2 py-1 text-[11px] font-medium text-accent hover:bg-accent/10 disabled:opacity-40"
+              >
+                {t("selection.markRead")}
+              </button>
+              <button
+                onClick={() => void handleToolbarDelete()}
+                disabled={selectedIds.size === 0}
+                className="rounded-full px-2 py-1 text-[11px] font-medium text-danger hover:bg-danger/10 disabled:opacity-40"
+              >
+                {t("selection.delete")}
+              </button>
+              <button
+                onClick={exitSelection}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                <X size={13} strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            {(
+              [
+                ["all", t("emailList.filterAll")],
+                ["unread", t("emailList.filterUnread")],
+                ["flagged", t("emailList.filterFlagged")],
+                ["attachments", t("emailList.filterAttachments")],
+              ] as [QuickFilter, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setQuickFilter(value)}
+                className={clsx(
+                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  quickFilter === value
+                    ? "bg-accent text-white"
+                    : "bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
+                )}
+              >
+                {value === "flagged" && <Star size={10} strokeWidth={2} />}
+                {value === "attachments" && <Paperclip size={10} strokeWidth={2} />}
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -174,52 +303,91 @@ export function EmailList() {
           </div>
         )}
 
-        {filtered.map((message) => (
-          <button
-            key={message.id}
-            onClick={() => handleOpen(message)}
-            className={clsx(
-              "flex w-full items-start gap-2.5 border-b border-black/5 px-4 py-3 text-left transition-colors dark:border-white/5",
-              message.id === selectedMessageId
-                ? "bg-accent/10"
-                : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
-            )}
-          >
-            <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="mt-0.5" />
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className={clsx(
-                    "truncate text-[13px]",
-                    message.is_read === 0
-                      ? "font-semibold text-neutral-900 dark:text-neutral-50"
-                      : "font-medium text-neutral-600 dark:text-neutral-300",
+        {filtered.map((message) => {
+          const isChecked = selectedIds.has(message.id);
+          return (
+            <button
+              key={message.id}
+              onClick={() => handleOpen(message)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, message });
+              }}
+              className={clsx(
+                "flex w-full items-start gap-2.5 border-b border-black/5 px-4 py-3 text-left transition-colors dark:border-white/5",
+                message.id === selectedMessageId || isChecked
+                  ? "bg-accent/10"
+                  : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
+              )}
+            >
+              {selectionMode ? (
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                  {isChecked ? (
+                    <CheckSquare size={18} strokeWidth={1.75} className="text-accent" />
+                  ) : (
+                    <Square size={18} strokeWidth={1.5} className="text-neutral-300 dark:text-neutral-600" />
                   )}
-                >
-                  {message.from_name || message.from_address || t("app.unknownSender")}
                 </span>
-                <span className="flex-shrink-0 text-[11px] text-neutral-400 tabular-nums">
-                  {safeDistance(message.date)}
-                </span>
+              ) : (
+                <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="mt-0.5" />
+              )}
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={clsx(
+                      "truncate text-[13px]",
+                      message.is_read === 0
+                        ? "font-semibold text-neutral-900 dark:text-neutral-50"
+                        : "font-medium text-neutral-600 dark:text-neutral-300",
+                    )}
+                  >
+                    {message.from_name || message.from_address || t("app.unknownSender")}
+                  </span>
+                  <span className="flex-shrink-0 text-[11px] text-neutral-400 tabular-nums">
+                    {safeDistance(message.date)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {message.is_read === 0 && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />}
+                  <span
+                    className={clsx(
+                      "truncate text-[13px]",
+                      message.is_read === 0
+                        ? "text-neutral-800 dark:text-neutral-100"
+                        : "text-neutral-500 dark:text-neutral-400",
+                    )}
+                  >
+                    {message.subject}
+                  </span>
+                </div>
+                <p className="truncate text-[12px] text-neutral-400">{message.snippet}</p>
               </div>
-              <div className="flex items-center gap-1.5">
-                {message.is_read === 0 && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent" />}
-                <span
-                  className={clsx(
-                    "truncate text-[13px]",
-                    message.is_read === 0
-                      ? "text-neutral-800 dark:text-neutral-100"
-                      : "text-neutral-500 dark:text-neutral-400",
-                  )}
-                >
-                  {message.subject}
-                </span>
-              </div>
-              <p className="truncate text-[12px] text-neutral-400">{message.snippet}</p>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
+
+      {contextMenu && activeAccount && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          message={contextMenu.message}
+          accountId={activeAccount.id}
+          onClose={() => setContextMenu(null)}
+          onToggleRead={() => {
+            if (activeAccount && folder) void markRead(activeAccount, folder, contextMenu.message, contextMenu.message.is_read === 0);
+          }}
+          onToggleFlag={() => {
+            if (activeAccount && folder) void toggleFlag(activeAccount, folder, contextMenu.message);
+          }}
+          onSelect={() => {
+            setSelectionMode(true);
+            setSelectedIds(new Set([contextMenu.message.id]));
+          }}
+          onDelete={() => void deleteTargets([contextMenu.message])}
+          onManageLabels={() => openSettings("labels")}
+        />
+      )}
     </section>
   );
 }

@@ -297,7 +297,7 @@ export function Sidebar() {
         {t("sidebar.compose")}
       </button>
 
-      <nav ref={navRef} className="flex-1 space-y-0.5 overflow-y-auto">
+      <nav ref={navRef} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
         {folders.map((folder, i) => {
           const Icon = (folder.special_use && folderIcons[folder.special_use]) || Folder;
           const isSelected = folder.id === selectedFolderId;
@@ -346,7 +346,7 @@ export function Sidebar() {
 
       <button
         onClick={() => openSettings("accounts")}
-        className="mt-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10 dark:text-neutral-400"
+        className="mt-3 flex flex-shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10 dark:text-neutral-400"
       >
         <Settings size={15} strokeWidth={1.5} />
         {t("sidebar.settings")}

@@ -115,7 +115,7 @@ export default function App() {
         <div
           aria-hidden={isReadingPaneExpanded}
           className={clsx(
-            "flex-shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out",
+            "flex flex-shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-out",
             isReadingPaneExpanded ? "pointer-events-none w-0 opacity-0" : "w-60 opacity-100",
           )}
         >

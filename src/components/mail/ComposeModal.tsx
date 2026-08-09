@@ -60,10 +60,14 @@ export function ComposeModal() {
       <div
         className={clsx(
           "fixed z-50 flex flex-col transition-[top,left,width,height,opacity,transform]",
-          entered ? "opacity-100" : "translate-y-3 scale-[0.96] opacity-0",
+          entered ? "opacity-100" : "scale-[0.1] opacity-0",
         )}
         style={{
           ...(isExpanded ? EXPANDED_STYLE : COLLAPSED_STYLE),
+          // Anchored near the floating compose button (bottom-6 right-6),
+          // so opening zooms up out of that corner and closing reverses
+          // back into it, instead of scaling from the box's own center.
+          transformOrigin: "calc(100% - 26px) calc(100% - 26px)",
           transitionDuration: "320ms",
           transitionTimingFunction: EASE,
         }}

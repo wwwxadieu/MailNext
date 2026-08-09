@@ -66,6 +66,14 @@ export function imapMoveMessage(
   return invoke("imap_move_message", { connection, folder, uid, destination });
 }
 
+export function imapDeleteMessages(connection: ImapConnection, folder: string, uids: number[]): Promise<void> {
+  return invoke("imap_delete_messages", { connection, folder, uids });
+}
+
+export function imapEmptyFolder(connection: ImapConnection, folder: string): Promise<void> {
+  return invoke("imap_empty_folder", { connection, folder });
+}
+
 export function imapUnseenCount(connection: ImapConnection, folder: string): Promise<number> {
   return invoke("imap_unseen_count", { connection, folder });
 }

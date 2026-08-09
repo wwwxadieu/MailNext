@@ -471,6 +471,72 @@ pub async fn imap_move_message(
 }
 
 #[tauri::command]
+pub async fn imap_delete_messages(
+    connection: ImapConnection,
+    folder: String,
+    uids: Vec<u32>,
+) -> Result<(), String> {
+    if uids.is_empty() {
+        return Ok(());
+    }
+    let mut session = connect(&connection).await?;
+    session
+        .select(&folder)
+        .await
+        .map_err(|e| format!("Could not open folder '{folder}': {e}"))?;
+
+    let uid_set = uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+    session
+        .uid_store(uid_set, "+FLAGS (\\Deleted)")
+        .await
+        .map_err(|e| format!("Could not flag messages for deletion: {e}"))?
+        .try_collect::<Vec<_>>()
+        .await
+        .map_err(|e| format!("Could not confirm deletion flag: {e}"))?;
+
+    session
+        .expunge()
+        .await
+        .map_err(|e| format!("Could not expunge messages: {e}"))?
+        .try_collect::<Vec<_>>()
+        .await
+        .map_err(|e| format!("Could not confirm expunge: {e}"))?;
+
+    session.logout().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn imap_empty_folder(connection: ImapConnection, folder: String) -> Result<(), String> {
+    let mut session = connect(&connection).await?;
+    let mailbox = session
+        .select(&folder)
+        .await
+        .map_err(|e| format!("Could not open folder '{folder}': {e}"))?;
+
+    if mailbox.exists > 0 {
+        session
+            .uid_store("1:*", "+FLAGS (\\Deleted)")
+            .await
+            .map_err(|e| format!("Could not flag messages for deletion: {e}"))?
+            .try_collect::<Vec<_>>()
+            .await
+            .map_err(|e| format!("Could not confirm deletion flag: {e}"))?;
+
+        session
+            .expunge()
+            .await
+            .map_err(|e| format!("Could not expunge messages: {e}"))?
+            .try_collect::<Vec<_>>()
+            .await
+            .map_err(|e| format!("Could not confirm expunge: {e}"))?;
+    }
+
+    session.logout().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn imap_unseen_count(connection: ImapConnection, folder: String) -> Result<u32, String> {
     unseen_count(&connection, &folder).await
 }
