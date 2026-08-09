@@ -1,0 +1,27 @@
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+npm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust / Tauri
+src-tauri/target
+src-tauri/gen
+src-tauri/Cargo.lock.bak
+
+# Env
+.env
+.env.local
+
+# Logs
+*.log
