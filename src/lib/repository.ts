@@ -129,16 +129,32 @@ function folderPriority(specialUse: SpecialUse | null): number {
 }
 
 export async function syncFolders(accountId: string, folders: FolderInfo[]): Promise<void> {
+  const validPaths = new Set<string>();
+
   for (const folder of folders) {
+    validPaths.add(folder.path);
     const sortOrder = folderPriority(folder.specialUse);
-    const [existing] = await dbSelect<FolderRow>(
+    let [existing] = await dbSelect<FolderRow>(
       "SELECT * FROM folders WHERE account_id = ? AND path = ?",
       [accountId, folder.path],
     );
+    if (!existing) {
+      // Gmail doesn't encode a label's raw IMAP path consistently between
+      // syncs — the same non-ASCII label can come back modified-UTF-7
+      // encoded one time and as literal UTF-8 the next (see
+      // decode_imap_utf7 on the Rust side). A raw-path lookup misses that
+      // and would insert a duplicate row for what's really the same
+      // folder, so fall back to matching by the already-decoded display
+      // name and heal the row's path below instead.
+      [existing] = await dbSelect<FolderRow>(
+        "SELECT * FROM folders WHERE account_id = ? AND name = ?",
+        [accountId, folder.name],
+      );
+    }
     if (existing) {
       await dbExecute(
-        "UPDATE folders SET name = ?, special_use = ?, unread_count = ?, total_count = ?, sort_order = ? WHERE id = ?",
-        [folder.name, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder, existing.id],
+        "UPDATE folders SET name = ?, path = ?, special_use = ?, unread_count = ?, total_count = ?, sort_order = ? WHERE id = ?",
+        [folder.name, folder.path, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder, existing.id],
       );
     } else {
       await dbExecute(
@@ -146,6 +162,18 @@ export async function syncFolders(accountId: string, folders: FolderInfo[]): Pro
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [newId(), accountId, folder.name, folder.path, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder],
       );
+    }
+  }
+
+  // Clean up duplicates left behind by past syncs that hit the encoding
+  // drift above before this fix existed: any local row whose path the
+  // server no longer reports, but whose name was already claimed by a
+  // folder we just matched/updated above, is a stale leftover twin.
+  const localFolders = await dbSelect<FolderRow>("SELECT * FROM folders WHERE account_id = ?", [accountId]);
+  const namesSeen = new Set(folders.map((f) => f.name));
+  for (const row of localFolders) {
+    if (!validPaths.has(row.path) && namesSeen.has(row.name)) {
+      await dbExecute("DELETE FROM folders WHERE id = ?", [row.id]);
     }
   }
 }
