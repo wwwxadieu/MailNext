@@ -66,7 +66,7 @@
       "endpoints": [
         "https://github.com/wwwxadieu/MailNext/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgyRDdFREI3NDE4MDMzMUYKUldRZk00QkJ0KzNYZ2p2VGErSGpCSTltVE92emEzS1FsNGpzc2NqUmloT1FwVWMrL1hGY1JlMDQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg4MTA4NEIxNzE2RDE4REIKUldUYkdHMXhzWVFRaU5NYUl5V0d5TmlaMjM2eWhpZXJ2R29xcUpJUUZOZG0zWjk0dzlUMU9sR0wK",
       "windows": {
         "installMode": "quiet"
       }
