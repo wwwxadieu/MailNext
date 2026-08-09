@@ -4,6 +4,7 @@ export type SettingsPanel =
   | "general"
   | "accounts"
   | "signatures"
+  | "templates"
   | "labels"
   | "rules"
   | "notifications"

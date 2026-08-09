@@ -19,5 +19,11 @@ pub fn migrations() -> Vec<Migration> {
             sql: include_str!("../../migrations/0002_rules.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "templates",
+            sql: include_str!("../../migrations/0003_templates.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

@@ -13,6 +13,7 @@ import type {
   RuleRow,
   SignatureRow,
   SpecialUse,
+  TemplateRow,
 } from "@/types/mail";
 
 export function newId(): string {
@@ -316,6 +317,48 @@ export async function setDefaultSignature(accountId: string, signatureId: string
 
 export async function deleteSignature(signatureId: string): Promise<void> {
   await dbExecute("DELETE FROM signatures WHERE id = ?", [signatureId]);
+}
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
+
+export async function listTemplates(accountId: string): Promise<TemplateRow[]> {
+  return dbSelect<TemplateRow>("SELECT * FROM templates WHERE account_id = ? ORDER BY sort_order ASC", [accountId]);
+}
+
+export interface TemplateInput {
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+}
+
+export async function createTemplate(accountId: string, input: TemplateInput): Promise<TemplateRow> {
+  const id = newId();
+  const countRows = await dbSelect<{ count: number }>(
+    "SELECT COUNT(*) as count FROM templates WHERE account_id = ?",
+    [accountId],
+  );
+  const count = countRows[0]?.count ?? 0;
+  await dbExecute(
+    "INSERT INTO templates (id, account_id, name, subject, body_html, body_text, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [id, accountId, input.name, input.subject, input.bodyHtml, input.bodyText, count],
+  );
+  const [template] = await dbSelect<TemplateRow>("SELECT * FROM templates WHERE id = ?", [id]);
+  if (!template) throw new Error("Failed to create template");
+  return template;
+}
+
+export async function updateTemplate(templateId: string, input: TemplateInput): Promise<void> {
+  await dbExecute(
+    "UPDATE templates SET name = ?, subject = ?, body_html = ?, body_text = ? WHERE id = ?",
+    [input.name, input.subject, input.bodyHtml, input.bodyText, templateId],
+  );
+}
+
+export async function deleteTemplate(templateId: string): Promise<void> {
+  await dbExecute("DELETE FROM templates WHERE id = ?", [templateId]);
 }
 
 // ---------------------------------------------------------------------------
