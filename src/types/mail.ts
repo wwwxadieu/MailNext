@@ -164,6 +164,17 @@ export interface LabelRow {
   color: string;
 }
 
+/** Row shape mirroring the `templates` SQLite table. */
+export interface TemplateRow {
+  id: string;
+  account_id: string;
+  name: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  sort_order: number;
+}
+
 /** Row shape mirroring the `signatures` SQLite table. */
 export interface SignatureRow {
   id: string;

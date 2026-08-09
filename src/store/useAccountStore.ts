@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as repo from "@/lib/repository";
+import { seedDefaultTemplates } from "@/lib/templateSeeds";
 import type { Account } from "@/types/mail";
 
 interface AccountState {
@@ -33,6 +34,9 @@ export const useAccountStore = create<AccountState>((set, get) => ({
       accounts: [...state.accounts, account],
       activeAccountId: state.activeAccountId ?? account.id,
     }));
+    void seedDefaultTemplates(account.id).catch(() => {
+      // Best-effort — the account still works fine without sample templates.
+    });
     return account;
   },
 

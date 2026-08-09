@@ -1,11 +1,12 @@
 import clsx from "clsx";
-import { AtSign, Bell, Filter, PenLine, RefreshCw, Sparkles, SunMoon, Tag } from "lucide-react";
+import { AtSign, Bell, FileText, Filter, PenLine, RefreshCw, Sparkles, SunMoon, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountsSettings } from "@/components/settings/AccountsSettings";
 import { AiSummarySettings } from "@/components/settings/AiSummarySettings";
 import { SignatureEditor } from "@/components/settings/SignatureEditor";
+import { TemplateManager } from "@/components/settings/TemplateManager";
 import { LabelManager } from "@/components/settings/LabelManager";
 import { RulesSettings } from "@/components/settings/RulesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
@@ -18,6 +19,7 @@ const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIc
   { id: "general", labelKey: "settings.tab.general", icon: SunMoon },
   { id: "accounts", labelKey: "settings.tab.accounts", icon: AtSign },
   { id: "signatures", labelKey: "settings.tab.signatures", icon: PenLine },
+  { id: "templates", labelKey: "settings.tab.templates", icon: FileText },
   { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
   { id: "rules", labelKey: "settings.tab.rules", icon: Filter },
   { id: "notifications", labelKey: "settings.tab.notifications", icon: Bell },
@@ -55,6 +57,7 @@ export function SettingsModal() {
           {panel === "general" && <GeneralSettings />}
           {panel === "accounts" && <AccountsSettings />}
           {panel === "signatures" && <SignatureEditor />}
+          {panel === "templates" && <TemplateManager />}
           {panel === "labels" && <LabelManager />}
           {panel === "rules" && <RulesSettings />}
           {panel === "notifications" && <NotificationSettings />}

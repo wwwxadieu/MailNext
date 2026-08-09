@@ -4,6 +4,7 @@ export type SettingsPanel =
   | "general"
   | "accounts"
   | "signatures"
+  | "templates"
   | "labels"
   | "rules"
   | "notifications"
@@ -16,6 +17,7 @@ interface UiState {
   composeInReplyTo: string | null;
   settingsPanel: SettingsPanel;
   isFolderModalOpen: boolean;
+  isReadingPaneExpanded: boolean;
 
   openCompose: (inReplyTo?: string) => void;
   closeCompose: () => void;
@@ -23,6 +25,7 @@ interface UiState {
   closeSettings: () => void;
   openFolderModal: () => void;
   closeFolderModal: () => void;
+  toggleReadingPaneExpanded: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -30,6 +33,7 @@ export const useUiStore = create<UiState>((set) => ({
   composeInReplyTo: null,
   settingsPanel: null,
   isFolderModalOpen: false,
+  isReadingPaneExpanded: false,
 
   openCompose: (inReplyTo) => set({ isComposing: true, composeInReplyTo: inReplyTo ?? null }),
   closeCompose: () => set({ isComposing: false, composeInReplyTo: null }),
@@ -37,4 +41,5 @@ export const useUiStore = create<UiState>((set) => ({
   closeSettings: () => set({ settingsPanel: null }),
   openFolderModal: () => set({ isFolderModalOpen: true }),
   closeFolderModal: () => set({ isFolderModalOpen: false }),
+  toggleReadingPaneExpanded: () => set((s) => ({ isReadingPaneExpanded: !s.isReadingPaneExpanded })),
 }));
