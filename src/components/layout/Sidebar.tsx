@@ -82,49 +82,81 @@ export function Sidebar() {
     if (activeAccount) void loadMessages(activeAccount, folder);
   }
 
-  // Categorize folders into prioritized sections
-  const systemFolders: FolderRow[] = [];
-  const categoryFolders: FolderRow[] = [];
-  const customFolders: FolderRow[] = [];
+  // Deduplicate and categorize folders into prioritized sections
+  const systemMap = new Map<SpecialUse, FolderRow>();
+  const categoryMap = new Map<SpecialUse, FolderRow>();
+  const customMap = new Map<string, FolderRow>();
 
-  for (const f of folders) {
-    if (f.special_use && SYSTEM_SPECIAL_USES.includes(f.special_use)) {
-      systemFolders.push(f);
-    } else if (f.special_use && CATEGORY_SPECIAL_USES.includes(f.special_use)) {
-      categoryFolders.push(f);
-    } else {
-      // Check if folder name corresponds to a standard folder that wasn't tagged with special_use
-      const lower = f.name.toLowerCase();
-      if (lower === "hộp thư đến" || lower === "inbox") {
-        systemFolders.push({ ...f, special_use: "inbox" });
-      } else if (lower.includes("nháp") || lower === "bản thảo" || lower === "drafts") {
-        systemFolders.push({ ...f, special_use: "drafts" });
-      } else if (lower.includes("đã gửi") || lower === "sent") {
-        systemFolders.push({ ...f, special_use: "sent" });
-      } else if (lower.includes("thùng rác") || lower === "trash") {
-        systemFolders.push({ ...f, special_use: "trash" });
-      } else if (lower.includes("thư rác") || lower === "junk" || lower === "spam") {
-        systemFolders.push({ ...f, special_use: "junk" });
+  function detectSpecialUse(folder: FolderRow): SpecialUse | null {
+    if (folder.special_use) return folder.special_use;
+    const lower = folder.name.trim().toLowerCase();
+    if (lower === "hộp thư đến" || lower === "inbox") return "inbox";
+    if (lower.includes("nháp") || lower === "bản thảo" || lower === "drafts" || lower === "thư nháp") return "drafts";
+    if (lower.includes("đã gửi") || lower === "sent" || lower === "sent mail" || lower === "hộp thư đi") return "sent";
+    if (lower.includes("thùng rác") || lower === "trash" || lower === "deleted") return "trash";
+    if (lower.includes("thư rác") || lower === "junk" || lower === "spam") return "junk";
+    if (lower.includes("lưu trữ") || lower === "archive") return "archive";
+    if (lower === "promotions" || lower === "quảng cáo") return "promotions";
+    if (lower === "social" || lower === "mạng xã hội") return "social";
+    if (lower === "shopping" || lower === "mua sắm") return "shopping";
+    return null;
+  }
+
+  for (const folder of folders) {
+    const role = detectSpecialUse(folder);
+    if (role && SYSTEM_SPECIAL_USES.includes(role)) {
+      const existing = systemMap.get(role);
+      if (!existing) {
+        systemMap.set(role, { ...folder, special_use: role });
       } else {
-        customFolders.push(f);
+        systemMap.set(role, {
+          ...existing,
+          unread_count: Math.max(existing.unread_count, folder.unread_count),
+        });
+      }
+    } else if (role && CATEGORY_SPECIAL_USES.includes(role)) {
+      const existing = categoryMap.get(role);
+      if (!existing) {
+        categoryMap.set(role, { ...folder, special_use: role });
+      } else {
+        categoryMap.set(role, {
+          ...existing,
+          unread_count: Math.max(existing.unread_count, folder.unread_count),
+        });
+      }
+    } else {
+      const normKey = folder.name.trim().toLowerCase();
+      const existing = customMap.get(normKey);
+      if (!existing) {
+        customMap.set(normKey, folder);
+      } else {
+        customMap.set(normKey, {
+          ...existing,
+          unread_count: Math.max(existing.unread_count, folder.unread_count),
+        });
       }
     }
   }
 
-  // Sort system folders according to standard priority
-  const systemPriorityOrder: Record<string, number> = {
+  const systemPriorityOrder: Record<SpecialUse, number> = {
     inbox: 0,
     drafts: 1,
     sent: 2,
     archive: 3,
     junk: 4,
     trash: 5,
+    promotions: 6,
+    social: 7,
+    shopping: 8,
   };
-  systemFolders.sort((a, b) => {
-    const pa = a.special_use ? systemPriorityOrder[a.special_use] ?? 99 : 99;
-    const pb = b.special_use ? systemPriorityOrder[b.special_use] ?? 99 : 99;
-    return pa - pb;
-  });
+
+  const systemFolders = Array.from(systemMap.values()).sort(
+    (a, b) => (systemPriorityOrder[a.special_use!] ?? 99) - (systemPriorityOrder[b.special_use!] ?? 99),
+  );
+  const categoryFolders = Array.from(categoryMap.values());
+  const customFolders = Array.from(customMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
 
   return (
     <aside className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col border-r border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/85 backdrop-blur-2xl backdrop-saturate-150 p-3 shadow-lg z-10 transition-all duration-300">
