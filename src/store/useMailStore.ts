@@ -1,10 +1,18 @@
 import { create } from "zustand";
+import { listen } from "@tauri-apps/api/event";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
 import * as repo from "@/lib/repository";
 import { applyRulesToNewMessages } from "@/lib/rules";
 import { classifyAndFileNewMessages, ensureDefaultCategoryFolders } from "@/lib/categoryFolders";
 import type { Account, FolderRow, MessageRow } from "@/types/mail";
+
+export type SyncStage = "idle" | "folders" | "messages";
+
+interface FolderSyncProgress {
+  current: number;
+  total: number;
+}
 
 interface MailState {
   folders: FolderRow[];
@@ -14,6 +22,8 @@ interface MailState {
   isLoadingFolders: boolean;
   isLoadingMessages: boolean;
   error: string | null;
+  syncStage: SyncStage;
+  folderSyncProgress: FolderSyncProgress | null;
 
   loadFolders: (account: Account) => Promise<void>;
   selectFolder: (folderId: string) => void;
@@ -39,11 +49,16 @@ export const useMailStore = create<MailState>((set, get) => ({
   isLoadingFolders: false,
   isLoadingMessages: false,
   error: null,
+  syncStage: "idle",
+  folderSyncProgress: null,
 
   loadFolders: async (account) => {
     if (loadFoldersInFlight.has(account.id)) return;
     loadFoldersInFlight.add(account.id);
-    set({ isLoadingFolders: true, error: null });
+    set({ isLoadingFolders: true, error: null, syncStage: "folders", folderSyncProgress: null });
+    const unlisten = await listen<FolderSyncProgress>("mail://folder-sync-progress", (event) => {
+      set({ folderSyncProgress: event.payload });
+    });
     try {
       const connection = toImapConnection(account);
       const remoteFolders = await commands.imapListFolders(connection);
@@ -62,11 +77,22 @@ export const useMailStore = create<MailState>((set, get) => ({
       const inbox = folders.find((f) => f.special_use === "inbox") ?? folders[0];
       if (inbox && !get().selectedFolderId) {
         get().selectFolder(inbox.id);
-        void get().loadMessages(account, inbox);
+        // Awaited (rather than fire-and-forget) so the "messages" sync stage
+        // this sets isn't immediately clobbered by this function's own
+        // "idle" reset in `finally` below.
+        await get().loadMessages(account, inbox);
+      } else {
+        set({ syncStage: "idle", folderSyncProgress: null });
       }
     } catch (err) {
-      set({ isLoadingFolders: false, error: err instanceof Error ? err.message : String(err) });
+      set({
+        isLoadingFolders: false,
+        error: err instanceof Error ? err.message : String(err),
+        syncStage: "idle",
+        folderSyncProgress: null,
+      });
     } finally {
+      unlisten();
       loadFoldersInFlight.delete(account.id);
     }
   },
@@ -78,7 +104,7 @@ export const useMailStore = create<MailState>((set, get) => ({
     // cold start) doesn't block on the network round-trip below — the fresh
     // fetch below patches `messages` again once it lands.
     const cached = await repo.listMessages(folder.id);
-    set({ messages: cached, isLoadingMessages: true, error: null });
+    set({ messages: cached, isLoadingMessages: true, error: null, syncStage: "messages" });
     try {
       const connection = toImapConnection(account);
       const remoteMessages = await commands.imapFetchMessages(connection, folder.path, 50, 0);
@@ -104,11 +130,17 @@ export const useMailStore = create<MailState>((set, get) => ({
       }
 
       const messages = await repo.listMessages(folder.id);
-      set({ messages, isLoadingMessages: false });
+      set({ messages, isLoadingMessages: false, syncStage: "idle", folderSyncProgress: null });
     } catch (err) {
       // Fall back to whatever is cached locally when the network call fails.
       const messages = await repo.listMessages(folder.id);
-      set({ messages, isLoadingMessages: false, error: err instanceof Error ? err.message : String(err) });
+      set({
+        messages,
+        isLoadingMessages: false,
+        error: err instanceof Error ? err.message : String(err),
+        syncStage: "idle",
+        folderSyncProgress: null,
+      });
     }
   },
 

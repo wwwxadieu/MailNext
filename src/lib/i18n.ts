@@ -45,6 +45,9 @@ const en: Dict = {
   "emailList.filterUnread": "Unread",
   "emailList.filterFlagged": "Flagged",
   "emailList.filterAttachments": "Attachments",
+  "emailList.syncingFolders": "Syncing folders… {current}/{total}",
+  "emailList.syncingFoldersGeneric": "Syncing folders…",
+  "emailList.syncingMessages": "Fetching new messages…",
 
   "emailView.selectMessage": "Select a message to read",
   "emailView.summarize": "Summarize",
@@ -295,6 +298,9 @@ const vi: Dict = {
   "emailList.filterUnread": "Chưa đọc",
   "emailList.filterFlagged": "Gắn cờ",
   "emailList.filterAttachments": "Tệp đính kèm",
+  "emailList.syncingFolders": "Đang đồng bộ thư mục… {current}/{total}",
+  "emailList.syncingFoldersGeneric": "Đang đồng bộ thư mục…",
+  "emailList.syncingMessages": "Đang tải thư mới…",
 
   "emailView.selectMessage": "Chọn một thư để đọc",
   "emailView.summarize": "Tóm tắt",

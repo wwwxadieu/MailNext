@@ -8,11 +8,19 @@
 use async_imap::types::Fetch;
 use futures::TryStreamExt;
 use mail_parser::{MessageParser, MimeHeaders};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 use tokio::net::TcpStream;
 
 use crate::models::{
     EmailAddress, EmailAttachment, EmailMessage, FolderInfo, ImapConnection, MailAuth,
 };
+
+#[derive(Clone, Serialize)]
+struct FolderSyncProgress {
+    current: usize,
+    total: usize,
+}
 
 type ImapSession = async_imap::Session<tokio_native_tls::TlsStream<TcpStream>>;
 
@@ -71,7 +79,7 @@ pub async fn imap_test_connection(connection: ImapConnection) -> Result<bool, St
 }
 
 #[tauri::command]
-pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderInfo>, String> {
+pub async fn imap_list_folders(app: AppHandle, connection: ImapConnection) -> Result<Vec<FolderInfo>, String> {
     let mut session = connect(&connection).await?;
 
     let names: Vec<_> = session
@@ -82,12 +90,13 @@ pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderI
         .await
         .map_err(|e| format!("Could not read folder list: {e}"))?;
 
-    let mut folders = Vec::with_capacity(names.len());
-    for name in &names {
+    let total = names.len();
+    let mut folders = Vec::with_capacity(total);
+    for (index, name) in names.iter().enumerate() {
         let path = name.name().to_string();
         let special_use = classify_special_use(&path);
 
-        let (unread, total) = match session.examine(&path).await {
+        let (unread, total_count) = match session.examine(&path).await {
             Ok(mailbox) => {
                 let unseen = session
                     .uid_search("UNSEEN")
@@ -105,8 +114,10 @@ pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderI
             path,
             special_use,
             unread_count: unread,
-            total_count: total,
+            total_count,
         });
+
+        let _ = app.emit("mail://folder-sync-progress", FolderSyncProgress { current: index + 1, total });
     }
 
     session.logout().await.map_err(|e| e.to_string())?;

@@ -23,6 +23,8 @@ export function EmailList() {
   const isLoadingMessages = useMailStore((s) => s.isLoadingMessages);
   const loadFolders = useMailStore((s) => s.loadFolders);
   const loadMessages = useMailStore((s) => s.loadMessages);
+  const syncStage = useMailStore((s) => s.syncStage);
+  const folderSyncProgress = useMailStore((s) => s.folderSyncProgress);
   const openSettings = useUiStore((s) => s.openSettings);
 
   const [query, setQuery] = useState("");
@@ -41,6 +43,20 @@ export function EmailList() {
       setIsSyncing(false);
     }
   }
+
+  const syncPercent =
+    syncStage === "folders" && folderSyncProgress
+      ? Math.min(100, Math.round((folderSyncProgress.current / Math.max(folderSyncProgress.total, 1)) * 100))
+      : null;
+
+  const syncLabel =
+    syncStage === "folders"
+      ? folderSyncProgress
+        ? t("emailList.syncingFolders", { current: folderSyncProgress.current, total: folderSyncProgress.total })
+        : t("emailList.syncingFoldersGeneric")
+      : syncStage === "messages"
+        ? t("emailList.syncingMessages")
+        : null;
 
   const filtered = useMemo(() => {
     let result = messages;
@@ -80,7 +96,7 @@ export function EmailList() {
               title={t("emailList.sync")}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-neutral-200"
             >
-              <RefreshCw size={14} strokeWidth={1.5} className={clsx(isSyncing && "animate-spin")} />
+              <RefreshCw size={14} strokeWidth={1.5} className={clsx((isSyncing || syncStage !== "idle") && "animate-spin")} />
             </button>
             <button
               onClick={() => openSettings("rules")}
@@ -100,6 +116,23 @@ export function EmailList() {
             className="w-full bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
           />
         </div>
+        {syncLabel && (
+          <div className="flex flex-col gap-1 px-1">
+            <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
+              <span>{syncLabel}</span>
+              {syncPercent !== null && <span className="tabular-nums">{syncPercent}%</span>}
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+              <div
+                className={clsx(
+                  "h-full rounded-full bg-accent transition-[width] duration-200",
+                  syncPercent === null && "w-1/3 animate-pulse",
+                )}
+                style={syncPercent !== null ? { width: `${syncPercent}%` } : undefined}
+              />
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           {(
             [
