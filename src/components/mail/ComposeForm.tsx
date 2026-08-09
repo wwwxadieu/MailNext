@@ -125,25 +125,25 @@ export function ComposeForm({ initialDraft, onSent, onDetach, bodyMinHeightClass
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-col divide-y divide-black/5 dark:divide-white/10 px-4">
+    <div className="flex h-full flex-col bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+      <div className="flex flex-col divide-y divide-black/10 dark:divide-white/10 px-4">
         <input
           value={to}
           onChange={(e) => setTo(e.target.value)}
           placeholder={t("compose.to")}
-          className="h-9 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
+          className="h-9.5 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 outline-none dark:text-neutral-100 font-medium"
         />
         <input
           value={cc}
           onChange={(e) => setCc(e.target.value)}
           placeholder={t("compose.cc")}
-          className="h-9 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
+          className="h-9.5 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 outline-none dark:text-neutral-100 font-medium"
         />
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder={t("compose.subject")}
-          className="h-9 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
+          className="h-9.5 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 outline-none dark:text-neutral-100 font-semibold"
         />
       </div>
 

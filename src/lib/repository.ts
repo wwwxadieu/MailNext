@@ -97,6 +97,21 @@ export async function updateAccountTokens(
   );
 }
 
+export async function updateAccountProfile(
+  accountId: string,
+  displayName: string,
+  color: string,
+  avatarData?: string | null,
+): Promise<Account> {
+  await dbExecute(
+    "UPDATE accounts SET display_name = ?, color = ?, avatar_data = ? WHERE id = ?",
+    [displayName, color, avatarData ?? null, accountId],
+  );
+  const [account] = await dbSelect<Account>("SELECT * FROM accounts WHERE id = ?", [accountId]);
+  if (!account) throw new Error("Failed to find updated account");
+  return account;
+}
+
 // ---------------------------------------------------------------------------
 // Folders
 // ---------------------------------------------------------------------------

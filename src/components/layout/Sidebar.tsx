@@ -1,6 +1,8 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   Archive,
+  ChevronDown,
+  ChevronRight,
   FilePenLine,
   Folder,
   Inbox,
@@ -12,21 +14,29 @@ import {
   ShieldAlert,
   ShoppingBag,
   Trash2,
+  User,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import clsx from "clsx";
-import { createPortal } from "react-dom";
 import { FolderModal } from "@/components/layout/FolderModal";
+import { ProfileModal } from "@/components/layout/ProfileModal";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
-import { buildNotchClipPath, NOTCH_BUBBLE_SIZE, NOTCH_DEPTH, NOTCH_HALF_HEIGHT } from "@/lib/notchPath";
 import type { FolderRow, SpecialUse } from "@/types/mail";
 
 function folderLabel(t: ReturnType<typeof useT>, folder: FolderRow): string {
-  return folder.special_use ? t(`folder.${folder.special_use}`) : folder.name;
+  if (folder.special_use) return t(`folder.${folder.special_use}`);
+  // Translate standard vietnamese folder names if applicable
+  const lower = folder.name.toLowerCase();
+  if (lower === "inbox" || lower === "hộp thư đến") return t("folder.inbox") ?? "Hộp thư đến";
+  if (lower === "sent" || lower === "thư đã gửi") return t("folder.sent") ?? "Thư đã gửi";
+  if (lower === "drafts" || lower === "nháp" || lower === "bản thảo" || lower === "thư nháp") return t("folder.drafts") ?? "Thư nháp";
+  if (lower === "trash" || lower === "thùng rác") return t("folder.trash") ?? "Thùng rác";
+  if (lower === "junk" || lower === "spam" || lower === "thư rác") return t("folder.junk") ?? "Thư rác";
+  return folder.name;
 }
 
 const folderIcons: Record<SpecialUse, LucideIcon> = {
@@ -41,20 +51,8 @@ const folderIcons: Record<SpecialUse, LucideIcon> = {
   shopping: ShoppingBag,
 };
 
-const BUBBLE_RADIUS = NOTCH_BUBBLE_SIZE / 2;
-const GLOW_SIZE = NOTCH_BUBBLE_SIZE + 40;
-
-// Spring tuning: stiffness/damping drive the chase toward the target row; the
-// velocity-derived stretch factors are what give the notch + bubble a liquid,
-// elastic quality instead of a shape sliding to a new spot on a fixed easing curve.
-const STIFFNESS = 300;
-const DAMPING = 22;
-const HEIGHT_STRETCH_PER_VELOCITY = 1 / 1400;
-const MAX_HEIGHT_STRETCH = 0.65;
-const DEPTH_STRETCH_PER_VELOCITY = 1 / 2200;
-const MAX_DEPTH_STRETCH = 0.35;
-const BUBBLE_SQUASH_PER_VELOCITY = 1 / 5200;
-const MAX_BUBBLE_SQUASH = 0.22;
+const SYSTEM_SPECIAL_USES: SpecialUse[] = ["inbox", "drafts", "sent", "archive", "junk", "trash"];
+const CATEGORY_SPECIAL_USES: SpecialUse[] = ["promotions", "social", "shopping"];
 
 export function Sidebar() {
   const t = useT();
@@ -65,320 +63,303 @@ export function Sidebar() {
 
   const folders = useMailStore((s) => s.folders);
   const selectedFolderId = useMailStore((s) => s.selectedFolderId);
-  const loadFolders = useMailStore((s) => s.loadFolders);
   const selectFolder = useMailStore((s) => s.selectFolder);
   const loadMessages = useMailStore((s) => s.loadMessages);
 
+  const isComposing = useUiStore((s) => s.isComposing);
   const openSettings = useUiStore((s) => s.openSettings);
   const openCompose = useUiStore((s) => s.openCompose);
   const openFolderModal = useUiStore((s) => s.openFolderModal);
 
-  useEffect(() => {
-    if (activeAccount) void loadFolders(activeAccount);
-  }, [activeAccount?.id]);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [systemCollapsed, setSystemCollapsed] = useState(false);
+  const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
+  const [customCollapsed, setCustomCollapsed] = useState(false);
 
   function handleSelectFolder(folder: FolderRow) {
     selectFolder(folder.id);
     if (activeAccount) void loadMessages(activeAccount, folder);
   }
 
-  const asideRef = useRef<HTMLElement>(null);
-  const navRef = useRef<HTMLElement>(null);
-  const itemRefs = useRef(new Map<string, HTMLButtonElement>());
-  const bubbleRef = useRef<HTMLDivElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
+  // Categorize folders into prioritized sections
+  const systemFolders: FolderRow[] = [];
+  const categoryFolders: FolderRow[] = [];
+  const customFolders: FolderRow[] = [];
 
-  const [bubbleVisible, setBubbleVisible] = useState(false);
-  const [ActiveIcon, setActiveIcon] = useState<LucideIcon>(() => Folder);
-
-  const asideBoxRef = useRef({ width: 0, height: 0, top: 0, right: 0 });
-  const targetYRef = useRef<number | null>(null);
-  const posYRef = useRef<number | null>(null);
-  const velYRef = useRef(0);
-  const rafRef = useRef<number | null>(null);
-
-  function applyFrame() {
-    const asideEl = asideRef.current;
-    const bubbleEl = bubbleRef.current;
-    const glowEl = glowRef.current;
-    const posY = posYRef.current;
-    if (!asideEl || posY === null) return;
-
-    const speed = Math.abs(velYRef.current);
-    const heightStretch = 1 + Math.min(speed * HEIGHT_STRETCH_PER_VELOCITY, MAX_HEIGHT_STRETCH);
-    const depthStretch = 1 + Math.min(speed * DEPTH_STRETCH_PER_VELOCITY, MAX_DEPTH_STRETCH);
-    const squash = Math.min(speed * BUBBLE_SQUASH_PER_VELOCITY, MAX_BUBBLE_SQUASH);
-
-    const box = asideBoxRef.current;
-    asideEl.style.clipPath = buildNotchClipPath(
-      box.width,
-      box.height,
-      posY,
-      NOTCH_HALF_HEIGHT * heightStretch,
-      NOTCH_DEPTH * depthStretch,
-    );
-
-    const absoluteY = box.top + posY;
-    if (bubbleEl) {
-      bubbleEl.style.left = `${box.right - BUBBLE_RADIUS}px`;
-      bubbleEl.style.top = `${absoluteY - BUBBLE_RADIUS}px`;
-      bubbleEl.style.transform = `scaleY(${1 + squash}) scaleX(${1 - squash * 0.6})`;
-    }
-    if (glowEl) {
-      glowEl.style.left = `${box.right - BUBBLE_RADIUS - (GLOW_SIZE - NOTCH_BUBBLE_SIZE) / 2}px`;
-      glowEl.style.top = `${absoluteY - BUBBLE_RADIUS - (GLOW_SIZE - NOTCH_BUBBLE_SIZE) / 2}px`;
-    }
-  }
-
-  function stepSpring(now: number, last: number) {
-    const target = targetYRef.current;
-    if (target === null || posYRef.current === null) {
-      rafRef.current = null;
-      return;
-    }
-    const dt = Math.min((now - last) / 1000, 1 / 30);
-
-    const dY = target - posYRef.current;
-    const acc = dY * STIFFNESS - velYRef.current * DAMPING;
-    velYRef.current += acc * dt;
-    posYRef.current += velYRef.current * dt;
-
-    applyFrame();
-
-    const settled = Math.abs(dY) < 0.3 && Math.abs(velYRef.current) < 0.3;
-    if (settled) {
-      posYRef.current = target;
-      velYRef.current = 0;
-      applyFrame();
-      rafRef.current = null;
-      return;
-    }
-    rafRef.current = requestAnimationFrame((n) => stepSpring(n, now));
-  }
-
-  function startSpring() {
-    if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame((n) => stepSpring(n, n));
-  }
-
-  function recomputeTarget() {
-    const asideEl = asideRef.current;
-    const selected = selectedFolderId ? itemRefs.current.get(selectedFolderId) : undefined;
-    if (!asideEl || !selected) {
-      targetYRef.current = null;
-      posYRef.current = null;
-      setBubbleVisible(false);
-      return;
-    }
-
-    const asideRect = asideEl.getBoundingClientRect();
-    const buttonRect = selected.getBoundingClientRect();
-    asideBoxRef.current = {
-      width: asideRect.width,
-      height: asideRect.height,
-      top: asideRect.top,
-      right: asideRect.right,
-    };
-    targetYRef.current = buttonRect.top + buttonRect.height / 2 - asideRect.top;
-
-    const folder = folders.find((f) => f.id === selectedFolderId);
-    const Icon = (folder?.special_use && folderIcons[folder.special_use]) || Folder;
-    setActiveIcon(() => Icon);
-    setBubbleVisible(true);
-
-    if (posYRef.current === null) {
-      posYRef.current = targetYRef.current;
-      velYRef.current = 0;
-      applyFrame();
-      return;
-    }
-    startSpring();
-  }
-
-  const selectedFolderIdRef = useRef(selectedFolderId);
-  useEffect(() => {
-    selectedFolderIdRef.current = selectedFolderId;
-  }, [selectedFolderId]);
-
-  useLayoutEffect(() => {
-    recomputeTarget();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFolderId, folders]);
-
-  useEffect(() => {
-    const asideEl = asideRef.current;
-    const navEl = navRef.current;
-    if (!asideEl) return;
-
-    function handleGeometryChange() {
-      const currentId = selectedFolderIdRef.current;
-      if (!currentId) return;
-      const asideRect = asideEl!.getBoundingClientRect();
-      const selected = itemRefs.current.get(currentId);
-      if (!selected) return;
-      const buttonRect = selected.getBoundingClientRect();
-      asideBoxRef.current = {
-        width: asideRect.width,
-        height: asideRect.height,
-        top: asideRect.top,
-        right: asideRect.right,
-      };
-      targetYRef.current = buttonRect.top + buttonRect.height / 2 - asideRect.top;
-      startSpring();
-    }
-
-    const observer = new ResizeObserver(handleGeometryChange);
-    observer.observe(asideEl);
-
-    window.addEventListener("resize", handleGeometryChange);
-    navEl?.addEventListener("scroll", handleGeometryChange, { passive: true });
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", handleGeometryChange);
-      navEl?.removeEventListener("scroll", handleGeometryChange);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
+  for (const f of folders) {
+    if (f.special_use && SYSTEM_SPECIAL_USES.includes(f.special_use)) {
+      systemFolders.push(f);
+    } else if (f.special_use && CATEGORY_SPECIAL_USES.includes(f.special_use)) {
+      categoryFolders.push(f);
+    } else {
+      // Check if folder name corresponds to a standard folder that wasn't tagged with special_use
+      const lower = f.name.toLowerCase();
+      if (lower === "hộp thư đến" || lower === "inbox") {
+        systemFolders.push({ ...f, special_use: "inbox" });
+      } else if (lower.includes("nháp") || lower === "bản thảo" || lower === "drafts") {
+        systemFolders.push({ ...f, special_use: "drafts" });
+      } else if (lower.includes("đã gửi") || lower === "sent") {
+        systemFolders.push({ ...f, special_use: "sent" });
+      } else if (lower.includes("thùng rác") || lower === "trash") {
+        systemFolders.push({ ...f, special_use: "trash" });
+      } else if (lower.includes("thư rác") || lower === "junk" || lower === "spam") {
+        systemFolders.push({ ...f, special_use: "junk" });
+      } else {
+        customFolders.push(f);
       }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    }
+  }
+
+  // Sort system folders according to standard priority
+  const systemPriorityOrder: Record<string, number> = {
+    inbox: 0,
+    drafts: 1,
+    sent: 2,
+    archive: 3,
+    junk: 4,
+    trash: 5,
+  };
+  systemFolders.sort((a, b) => {
+    const pa = a.special_use ? systemPriorityOrder[a.special_use] ?? 99 : 99;
+    const pb = b.special_use ? systemPriorityOrder[b.special_use] ?? 99 : 99;
+    return pa - pb;
+  });
 
   return (
-    <aside
-      ref={asideRef}
-      className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 bg-white/90 backdrop-blur-2xl backdrop-saturate-150 p-3 dark:border-r-accent/40 dark:bg-neutral-900/90"
-      style={{ filter: "drop-shadow(0 6px 18px rgba(15, 23, 42, 0.16))" }}
-    >
-      <div className="mb-3 flex flex-col gap-0.5">
-        {accounts.length > 1 ? (
-          accounts.map((account) => (
-            <button
-              key={account.id}
-              onClick={() => setActiveAccount(account.id)}
-              className={clsx(
-                "flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors",
-                account.id === activeAccountId ? "bg-accent/10" : "hover:bg-black/5 dark:hover:bg-white/10",
-              )}
-            >
-              <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: account.color }} />
-              <span className="min-w-0 flex-1">
-                <span
-                  className={clsx(
-                    "block truncate text-sm font-medium",
-                    account.id === activeAccountId ? "text-accent" : "text-neutral-800 dark:text-neutral-100",
-                  )}
-                >
-                  {account.display_name}
-                </span>
-                <span className="block truncate text-[11px] text-neutral-400">{account.email}</span>
-              </span>
-            </button>
-          ))
-        ) : (
-          <div className="flex items-center gap-2 rounded-xl px-2 py-2">
-            <span
-              className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
-              style={{ backgroundColor: activeAccount?.color ?? "#0A84FF" }}
-            />
-            <span className="flex-1 truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
+    <aside className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col border-r border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/85 backdrop-blur-2xl backdrop-saturate-150 p-3 shadow-lg z-10 transition-all duration-300">
+      {/* Account Profile Header */}
+      <div className="relative mb-3">
+        <button
+          onClick={() => setIsProfileModalOpen(true)}
+          className="flex w-full items-center gap-2.5 rounded-xl bg-black/5 dark:bg-white/5 p-2 text-left transition-all hover:bg-black/10 dark:hover:bg-white/10 group"
+          title={t("profile.editTitle") ?? "Chỉnh sửa hồ sơ"}
+        >
+          <div
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-xs text-white shadow-sm transition-transform group-hover:scale-105"
+            style={{ backgroundColor: activeAccount?.color ?? "#0A84FF" }}
+          >
+            {activeAccount?.avatar_data ? (
+              <img src={activeAccount.avatar_data} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              <span>{activeAccount?.display_name?.[0]?.toUpperCase() || <User size={16} />}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-accent transition-colors">
               {activeAccount?.display_name ?? t("sidebar.noAccount")}
             </span>
+            <span className="block truncate text-[11px] text-neutral-400 font-normal">
+              {activeAccount?.email}
+            </span>
           </div>
+        </button>
+
+        {accounts.length > 1 && (
+          <button
+            onClick={() => setAccountMenuOpen((v) => !v)}
+            className="absolute right-2 top-2.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+          >
+            <ChevronDown size={14} />
+          </button>
+        )}
+
+        {accountMenuOpen && accounts.length > 1 && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setAccountMenuOpen(false)} />
+            <div className="glass-panel-elevated absolute left-0 right-0 top-12 z-30 space-y-1 rounded-xl p-1.5 shadow-xl">
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  onClick={() => {
+                    setActiveAccount(account.id);
+                    setAccountMenuOpen(false);
+                  }}
+                  className={clsx(
+                    "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors",
+                    account.id === activeAccountId
+                      ? "bg-accent/15 text-accent font-medium"
+                      : "text-neutral-700 dark:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/10",
+                  )}
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: account.color }} />
+                  <span className="truncate flex-1">{account.display_name}</span>
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
+      {/* Animated Compose Quick Button */}
       <button
         onClick={() => openCompose()}
-        className="mb-4 flex h-9 items-center justify-center gap-2 rounded-full bg-accent text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
+        className={clsx(
+          "mb-4 flex h-9.5 w-full items-center justify-center gap-2 rounded-full text-xs font-semibold text-white shadow-md transition-all duration-300 transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-accent/40",
+          isComposing
+            ? "bg-accent-hover scale-[1.02] shadow-accent/20 shadow-lg ring-2 ring-accent/50"
+            : "bg-accent hover:bg-accent-hover hover:scale-[1.02] hover:shadow-lg",
+        )}
       >
-        <Pencil size={14} strokeWidth={1.5} />
-        {t("sidebar.compose")}
+        <Pencil size={15} strokeWidth={2} className={clsx("transition-transform duration-300", isComposing && "rotate-12")} />
+        <span>{t("sidebar.compose")}</span>
       </button>
 
-      <nav ref={navRef} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
-        {folders.map((folder, i) => {
-          const Icon = (folder.special_use && folderIcons[folder.special_use]) || Folder;
-          const isSelected = folder.id === selectedFolderId;
-          const prevFolder = folders[i - 1];
-          const showDivider = !folder.special_use && !!prevFolder && !!prevFolder.special_use;
-          return (
-            <Fragment key={folder.id}>
-              {showDivider && <div className="my-1.5 border-t border-black/[0.06] dark:border-white/[0.08]" />}
-              <button
-                ref={(el) => {
-                  if (el) itemRefs.current.set(folder.id, el);
-                  else itemRefs.current.delete(folder.id);
-                }}
-                onClick={() => handleSelectFolder(folder)}
-                className={clsx(
-                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-                  isSelected
-                    ? "text-accent font-medium"
-                    : "text-neutral-600 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
-                )}
-              >
-                <Icon
-                  size={15}
-                  strokeWidth={1.5}
-                  className={clsx("flex-shrink-0 transition-opacity", isSelected && "opacity-0")}
-                />
-                <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
-                {folder.unread_count > 0 && (
-                  <span className="rounded-full bg-black/10 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-600 dark:text-neutral-300">
-                    {folder.unread_count}
-                  </span>
-                )}
-              </button>
-            </Fragment>
-          );
-        })}
+      {/* Categorized Nav Folders */}
+      <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        {/* Group 1: System Mailboxes */}
+        <div>
+          <button
+            onClick={() => setSystemCollapsed((v) => !v)}
+            className="mb-1 flex w-full items-center justify-between px-2 text-[10px] font-bold tracking-wider text-neutral-400 uppercase hover:text-neutral-600 dark:hover:text-neutral-300"
+          >
+            <span>{t("sidebar.hoptu") ?? "HỘP THƯ CHÍNH"}</span>
+            {systemCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {!systemCollapsed && (
+            <div className="space-y-0.5">
+              {systemFolders.map((folder) => {
+                const Icon = (folder.special_use && folderIcons[folder.special_use]) || Folder;
+                const isSelected = folder.id === selectedFolderId;
+                return (
+                  <button
+                    key={folder.id}
+                    onClick={() => handleSelectFolder(folder)}
+                    className={clsx(
+                      "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] transition-all duration-150",
+                      isSelected
+                        ? "bg-accent text-white font-medium shadow-sm shadow-accent/30"
+                        : "text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
+                    )}
+                  >
+                    <Icon size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                    <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
+                    {folder.unread_count > 0 && (
+                      <span
+                        className={clsx(
+                          "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                          isSelected ? "bg-white/25 text-white" : "bg-accent/15 text-accent dark:bg-accent/25 dark:text-accent-hover",
+                        )}
+                      >
+                        {folder.unread_count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-        <button
-          onClick={openFolderModal}
-          className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          <Plus size={15} strokeWidth={1.5} />
-          {t("sidebar.newFolder")}
-        </button>
+        {/* Group 2: Categories */}
+        {categoryFolders.length > 0 && (
+          <div>
+            <button
+              onClick={() => setCategoriesCollapsed((v) => !v)}
+              className="mb-1 flex w-full items-center justify-between px-2 text-[10px] font-bold tracking-wider text-neutral-400 uppercase hover:text-neutral-600 dark:hover:text-neutral-300"
+            >
+              <span>{t("sidebar.phanloai") ?? "PHÂN LOẠI"}</span>
+              {categoriesCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {!categoriesCollapsed && (
+              <div className="space-y-0.5">
+                {categoryFolders.map((folder) => {
+                  const Icon = (folder.special_use && folderIcons[folder.special_use]) || Folder;
+                  const isSelected = folder.id === selectedFolderId;
+                  return (
+                    <button
+                      key={folder.id}
+                      onClick={() => handleSelectFolder(folder)}
+                      className={clsx(
+                        "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] transition-all duration-150",
+                        isSelected
+                          ? "bg-accent text-white font-medium shadow-sm shadow-accent/30"
+                          : "text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
+                      )}
+                    >
+                      <Icon size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                      <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
+                      {folder.unread_count > 0 && (
+                        <span
+                          className={clsx(
+                            "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                            isSelected ? "bg-white/25 text-white" : "bg-black/10 dark:bg-white/10 text-neutral-600 dark:text-neutral-300",
+                          )}
+                        >
+                          {folder.unread_count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Group 3: Custom User Folders */}
+        <div>
+          <button
+            onClick={() => setCustomCollapsed((v) => !v)}
+            className="mb-1 flex w-full items-center justify-between px-2 text-[10px] font-bold tracking-wider text-neutral-400 uppercase hover:text-neutral-600 dark:hover:text-neutral-300"
+          >
+            <span>{t("sidebar.thumuc") ?? "THƯ MỤC CÁ NHÂN"}</span>
+            {customCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          </button>
+          {!customCollapsed && (
+            <div className="space-y-0.5">
+              {customFolders.map((folder) => {
+                const isSelected = folder.id === selectedFolderId;
+                return (
+                  <button
+                    key={folder.id}
+                    onClick={() => handleSelectFolder(folder)}
+                    className={clsx(
+                      "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] transition-all duration-150",
+                      isSelected
+                        ? "bg-accent text-white font-medium shadow-sm shadow-accent/30"
+                        : "text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
+                    )}
+                  >
+                    <Folder size={15} strokeWidth={isSelected ? 2 : 1.5} className="flex-shrink-0" />
+                    <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
+                    {folder.unread_count > 0 && (
+                      <span
+                        className={clsx(
+                          "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                          isSelected ? "bg-white/25 text-white" : "bg-black/10 dark:bg-white/10 text-neutral-600 dark:text-neutral-300",
+                        )}
+                      >
+                        {folder.unread_count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={openFolderModal}
+                className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+              >
+                <Plus size={15} strokeWidth={1.5} />
+                {t("sidebar.newFolder")}
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
 
+      {/* Settings Bottom Button */}
       <button
         onClick={() => openSettings("accounts")}
-        className="mt-3 flex flex-shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10 dark:text-neutral-400"
+        className="mt-3 flex flex-shrink-0 items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
       >
         <Settings size={15} strokeWidth={1.5} />
         {t("sidebar.settings")}
       </button>
 
       <FolderModal />
-
-      {createPortal(
-        <>
-          <div
-            ref={glowRef}
-            aria-hidden
-            className={clsx(
-              "pointer-events-none fixed z-20 rounded-full bg-accent/25 blur-xl transition-opacity duration-200 dark:bg-accent/30",
-              bubbleVisible ? "opacity-100" : "opacity-0",
-            )}
-            style={{ width: GLOW_SIZE, height: GLOW_SIZE }}
-          />
-          <div
-            ref={bubbleRef}
-            aria-hidden
-            className={clsx(
-              "pointer-events-none fixed z-30 flex items-center justify-center rounded-full bg-accent text-white shadow-glass-lg ring-4 ring-white/70 transition-opacity duration-200 dark:ring-neutral-900/70",
-              bubbleVisible ? "opacity-100" : "opacity-0",
-            )}
-            style={{ width: NOTCH_BUBBLE_SIZE, height: NOTCH_BUBBLE_SIZE }}
-          >
-            <ActiveIcon size={19} strokeWidth={1.75} />
-          </div>
-        </>,
-        document.body,
-      )}
+      <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </aside>
   );
 }

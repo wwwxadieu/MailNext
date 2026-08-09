@@ -183,7 +183,7 @@ export function RichTextEditor({ value, onChange, placeholder, autoFocus, minHei
             isFocused.current = false;
           }}
           className={clsx(
-            "overflow-y-auto py-2 text-sm text-neutral-800 outline-none dark:text-neutral-100",
+            "overflow-y-auto py-2 text-sm text-neutral-900 outline-none dark:text-neutral-100",
             "[&_a]:text-accent [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5",
             "[&_blockquote]:border-l-2 [&_blockquote]:border-accent/40 [&_blockquote]:pl-3 [&_blockquote]:text-neutral-500 [&_blockquote]:dark:text-neutral-400",
             "[&_img]:max-w-full [&_table]:max-w-full [&_td]:align-top",
