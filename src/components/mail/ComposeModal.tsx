@@ -54,7 +54,7 @@ export function ComposeModal() {
         aria-hidden
         className={clsx(
           "fixed inset-0 z-40 pointer-events-none bg-black/10 backdrop-blur-md transition-opacity duration-300 dark:bg-black/30",
-          entered ? "opacity-100" : "opacity-0",
+          entered && isExpanded ? "opacity-100" : "opacity-0",
         )}
       />
       <div
