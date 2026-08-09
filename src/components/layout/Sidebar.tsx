@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Archive,
   FilePenLine,
@@ -248,7 +248,7 @@ export function Sidebar() {
   return (
     <aside
       ref={asideRef}
-      className="glass-panel relative flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 p-3 dark:border-r-accent/40"
+      className="glass-panel relative flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 bg-white/92 p-3 dark:border-r-accent/40 dark:bg-neutral-900/92"
       style={{ filter: "drop-shadow(0 6px 18px rgba(15, 23, 42, 0.16))" }}
     >
       <div className="mb-3 flex flex-col gap-0.5">
@@ -298,36 +298,40 @@ export function Sidebar() {
       </button>
 
       <nav ref={navRef} className="flex-1 space-y-0.5 overflow-y-auto">
-        {folders.map((folder) => {
+        {folders.map((folder, i) => {
           const Icon = (folder.special_use && folderIcons[folder.special_use]) || Folder;
           const isSelected = folder.id === selectedFolderId;
+          const prevFolder = folders[i - 1];
+          const showDivider = !folder.special_use && !!prevFolder && !!prevFolder.special_use;
           return (
-            <button
-              key={folder.id}
-              ref={(el) => {
-                if (el) itemRefs.current.set(folder.id, el);
-                else itemRefs.current.delete(folder.id);
-              }}
-              onClick={() => handleSelectFolder(folder)}
-              className={clsx(
-                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-                isSelected
-                  ? "text-accent font-medium"
-                  : "text-neutral-600 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
-              )}
-            >
-              <Icon
-                size={15}
-                strokeWidth={1.5}
-                className={clsx("flex-shrink-0 transition-opacity", isSelected && "opacity-0")}
-              />
-              <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
-              {folder.unread_count > 0 && (
-                <span className="rounded-full bg-black/10 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-600 dark:text-neutral-300">
-                  {folder.unread_count}
-                </span>
-              )}
-            </button>
+            <Fragment key={folder.id}>
+              {showDivider && <div className="my-1.5 border-t border-black/[0.06] dark:border-white/[0.08]" />}
+              <button
+                ref={(el) => {
+                  if (el) itemRefs.current.set(folder.id, el);
+                  else itemRefs.current.delete(folder.id);
+                }}
+                onClick={() => handleSelectFolder(folder)}
+                className={clsx(
+                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                  isSelected
+                    ? "text-accent font-medium"
+                    : "text-neutral-600 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
+                )}
+              >
+                <Icon
+                  size={15}
+                  strokeWidth={1.5}
+                  className={clsx("flex-shrink-0 transition-opacity", isSelected && "opacity-0")}
+                />
+                <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
+                {folder.unread_count > 0 && (
+                  <span className="rounded-full bg-black/10 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-600 dark:text-neutral-300">
+                    {folder.unread_count}
+                  </span>
+                )}
+              </button>
+            </Fragment>
           );
         })}
 

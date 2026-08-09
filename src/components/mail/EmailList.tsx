@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { ListFilter, Loader2, RefreshCw, Search } from "lucide-react";
 import clsx from "clsx";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
+import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
 import type { MessageRow } from "@/types/mail";
 
@@ -17,9 +18,25 @@ export function EmailList() {
   const selectMessage = useMailStore((s) => s.selectMessage);
   const markRead = useMailStore((s) => s.markRead);
   const isLoadingMessages = useMailStore((s) => s.isLoadingMessages);
+  const loadFolders = useMailStore((s) => s.loadFolders);
+  const loadMessages = useMailStore((s) => s.loadMessages);
+  const openSettings = useUiStore((s) => s.openSettings);
 
   const [query, setQuery] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
+
+  async function handleSync() {
+    if (!activeAccount || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await loadFolders(activeAccount);
+      const current = useMailStore.getState().folders.find((f) => f.id === selectedFolderId) ?? folder;
+      if (current) await loadMessages(activeAccount, current);
+    } finally {
+      setIsSyncing(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     if (!query.trim()) return messages;
@@ -43,9 +60,28 @@ export function EmailList() {
   return (
     <section className="solid-panel flex w-[360px] flex-shrink-0 flex-col rounded-none border-y-0">
       <header className="flex flex-shrink-0 flex-col gap-2 border-b border-black/5 dark:border-white/10 p-3">
-        <h1 className="px-1 text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-          {folder ? (folder.special_use ? t(`folder.${folder.special_use}`) : folder.name) : t("emailList.selectFolder")}
-        </h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="min-w-0 flex-1 truncate px-1 text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+            {folder ? (folder.special_use ? t(`folder.${folder.special_use}`) : folder.name) : t("emailList.selectFolder")}
+          </h1>
+          <div className="flex flex-shrink-0 items-center gap-0.5">
+            <button
+              onClick={handleSync}
+              disabled={!activeAccount || isSyncing}
+              title={t("emailList.sync")}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-neutral-200"
+            >
+              <RefreshCw size={14} strokeWidth={1.5} className={clsx(isSyncing && "animate-spin")} />
+            </button>
+            <button
+              onClick={() => openSettings("rules")}
+              title={t("emailList.rules")}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"
+            >
+              <ListFilter size={14} strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
         <div className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
           <Search size={14} strokeWidth={1.5} className="text-neutral-400" />
           <input

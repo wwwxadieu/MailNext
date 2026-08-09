@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { EmailList } from "@/components/mail/EmailList";
 import { EmailView } from "@/components/mail/EmailView";
 import { ComposeModal } from "@/components/mail/ComposeModal";
+import { FloatingComposeButton } from "@/components/mail/FloatingComposeButton";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { UpdateBanner } from "@/components/update/UpdateBanner";
@@ -115,6 +116,7 @@ export default function App() {
         <EmailView />
       </div>
       <ComposeModal />
+      <FloatingComposeButton />
       <SettingsModal />
       <UpdateBanner />
     </div>

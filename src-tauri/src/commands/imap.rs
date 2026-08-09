@@ -99,8 +99,9 @@ pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderI
             Err(_) => (0, 0),
         };
 
+        let raw_name = path.rsplit('/').next().unwrap_or(&path);
         folders.push(FolderInfo {
-            name: path.rsplit('/').next().unwrap_or(&path).to_string(),
+            name: decode_imap_utf7(raw_name),
             path,
             special_use,
             unread_count: unread,
@@ -110,6 +111,58 @@ pub async fn imap_list_folders(connection: ImapConnection) -> Result<Vec<FolderI
 
     session.logout().await.map_err(|e| e.to_string())?;
     Ok(folders)
+}
+
+/// Decodes an IMAP mailbox name from modified UTF-7 (RFC 3501 §5.1.3) to a
+/// normal Rust `String`, for display purposes only. The raw, still-encoded
+/// name must keep being used for any IMAP command (SELECT/EXAMINE/etc.) —
+/// this is applied solely to `FolderInfo.name`, never to `.path`.
+fn decode_imap_utf7(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut result = String::with_capacity(input.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'&' {
+            let start = i + 1;
+            let mut j = start;
+            while j < bytes.len() && bytes[j] != b'-' {
+                j += 1;
+            }
+            let chunk = &input[start..j];
+            if chunk.is_empty() {
+                result.push('&');
+            } else {
+                match decode_modified_base64(chunk) {
+                    Some(decoded) => result.push_str(&decoded),
+                    None => {
+                        // Not valid modified UTF-7 — keep the original bytes
+                        // rather than risk garbling something else entirely.
+                        result.push('&');
+                        result.push_str(chunk);
+                        if j < bytes.len() {
+                            result.push('-');
+                        }
+                    }
+                }
+            }
+            i = if j < bytes.len() { j + 1 } else { j };
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    result
+}
+
+fn decode_modified_base64(chunk: &str) -> Option<String> {
+    use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
+    let standard: String = chunk.chars().map(|c| if c == ',' { '/' } else { c }).collect();
+    let bytes = STANDARD_NO_PAD.decode(standard.as_bytes()).ok()?;
+    if bytes.len() % 2 != 0 {
+        return None;
+    }
+    let units: Vec<u16> = bytes.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+    String::from_utf16(&units).ok()
 }
 
 fn classify_special_use(path: &str) -> Option<String> {

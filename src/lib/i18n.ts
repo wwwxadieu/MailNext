@@ -39,6 +39,8 @@ const en: Dict = {
   "emailList.searchPlaceholder": "Search mail",
   "emailList.loading": "Loading messages…",
   "emailList.empty": "No messages here yet.",
+  "emailList.sync": "Sync now",
+  "emailList.rules": "Rules",
 
   "emailView.selectMessage": "Select a message to read",
   "emailView.summarize": "Summarize",
@@ -279,6 +281,8 @@ const vi: Dict = {
   "emailList.searchPlaceholder": "Tìm kiếm thư",
   "emailList.loading": "Đang tải thư…",
   "emailList.empty": "Chưa có thư nào ở đây.",
+  "emailList.sync": "Đồng bộ ngay",
+  "emailList.rules": "Quy tắc",
 
   "emailView.selectMessage": "Chọn một thư để đọc",
   "emailView.summarize": "Tóm tắt",

@@ -101,8 +101,35 @@ export async function updateAccountTokens(
 // Folders
 // ---------------------------------------------------------------------------
 
+// Priority MailNext gives each special-use folder in the sidebar, mirroring
+// how Gmail/Outlook group folders: primary mailbox actions first, inbox
+// category tabs next, then user-created folders (see `folderPriority`
+// below), with archive/junk/trash pinned to the bottom regardless of what
+// order the server's IMAP LIST response happens to return them in.
+const SPECIAL_USE_PRIORITY: Record<SpecialUse, number> = {
+  inbox: 0,
+  drafts: 1,
+  sent: 2,
+  promotions: 3,
+  social: 4,
+  shopping: 5,
+  archive: 90,
+  junk: 91,
+  trash: 92,
+};
+
+// Custom (non special-use) folders sort after every special-use folder, so
+// the sidebar can group them into their own section below a divider.
+const CUSTOM_FOLDER_PRIORITY = 100;
+
+function folderPriority(specialUse: SpecialUse | null): number {
+  if (specialUse === null) return CUSTOM_FOLDER_PRIORITY;
+  return SPECIAL_USE_PRIORITY[specialUse] ?? CUSTOM_FOLDER_PRIORITY;
+}
+
 export async function syncFolders(accountId: string, folders: FolderInfo[]): Promise<void> {
-  for (const [index, folder] of folders.entries()) {
+  for (const folder of folders) {
+    const sortOrder = folderPriority(folder.specialUse);
     const [existing] = await dbSelect<FolderRow>(
       "SELECT * FROM folders WHERE account_id = ? AND path = ?",
       [accountId, folder.path],
@@ -110,13 +137,13 @@ export async function syncFolders(accountId: string, folders: FolderInfo[]): Pro
     if (existing) {
       await dbExecute(
         "UPDATE folders SET name = ?, special_use = ?, unread_count = ?, total_count = ?, sort_order = ? WHERE id = ?",
-        [folder.name, folder.specialUse, folder.unreadCount, folder.totalCount, index, existing.id],
+        [folder.name, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder, existing.id],
       );
     } else {
       await dbExecute(
         `INSERT INTO folders (id, account_id, name, path, special_use, unread_count, total_count, sort_order)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId(), accountId, folder.name, folder.path, folder.specialUse, folder.unreadCount, folder.totalCount, index],
+        [newId(), accountId, folder.name, folder.path, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder],
       );
     }
   }
@@ -137,8 +164,8 @@ export async function createFolderRecord(
 ): Promise<FolderRow> {
   const id = newId();
   await dbExecute(
-    "INSERT INTO folders (id, account_id, name, path, special_use, unread_count, total_count, sort_order) VALUES (?, ?, ?, ?, ?, 0, 0, 999)",
-    [id, accountId, name, path, specialUse],
+    "INSERT INTO folders (id, account_id, name, path, special_use, unread_count, total_count, sort_order) VALUES (?, ?, ?, ?, ?, 0, 0, ?)",
+    [id, accountId, name, path, specialUse, folderPriority(specialUse)],
   );
   const [folder] = await dbSelect<FolderRow>("SELECT * FROM folders WHERE id = ?", [id]);
   if (!folder) throw new Error("Failed to create folder");
