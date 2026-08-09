@@ -22,7 +22,7 @@ import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
-import { buildNotchClipPath, NOTCH_BUBBLE_SIZE } from "@/lib/notchPath";
+import { buildNotchClipPath, NOTCH_BUBBLE_SIZE, NOTCH_DEPTH, NOTCH_HALF_HEIGHT } from "@/lib/notchPath";
 import type { FolderRow, SpecialUse } from "@/types/mail";
 
 function folderLabel(t: ReturnType<typeof useT>, folder: FolderRow): string {
@@ -41,15 +41,20 @@ const folderIcons: Record<SpecialUse, LucideIcon> = {
   shopping: ShoppingBag,
 };
 
-const NOTCH_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const BUBBLE_RADIUS = NOTCH_BUBBLE_SIZE / 2;
+const GLOW_SIZE = NOTCH_BUBBLE_SIZE + 40;
 
-interface NotchState {
-  clipPath: string;
-  bubbleLeft: number;
-  bubbleTop: number;
-  BubbleIcon: LucideIcon;
-}
+// Spring tuning: stiffness/damping drive the chase toward the target row; the
+// velocity-derived stretch factors are what give the notch + bubble a liquid,
+// elastic quality instead of a shape sliding to a new spot on a fixed easing curve.
+const STIFFNESS = 300;
+const DAMPING = 22;
+const HEIGHT_STRETCH_PER_VELOCITY = 1 / 1400;
+const MAX_HEIGHT_STRETCH = 0.65;
+const DEPTH_STRETCH_PER_VELOCITY = 1 / 2200;
+const MAX_DEPTH_STRETCH = 0.35;
+const BUBBLE_SQUASH_PER_VELOCITY = 1 / 5200;
+const MAX_BUBBLE_SQUASH = 0.22;
 
 export function Sidebar() {
   const t = useT();
@@ -80,40 +85,123 @@ export function Sidebar() {
   const asideRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
-  const [notch, setNotch] = useState<NotchState | null>(null);
-  const notchRafRef = useRef<number | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
 
-  function recomputeNotch() {
+  const [bubbleVisible, setBubbleVisible] = useState(false);
+  const [ActiveIcon, setActiveIcon] = useState<LucideIcon>(() => Folder);
+
+  const asideBoxRef = useRef({ width: 0, height: 0, top: 0, right: 0 });
+  const targetYRef = useRef<number | null>(null);
+  const posYRef = useRef<number | null>(null);
+  const velYRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+
+  function applyFrame() {
+    const asideEl = asideRef.current;
+    const bubbleEl = bubbleRef.current;
+    const glowEl = glowRef.current;
+    const posY = posYRef.current;
+    if (!asideEl || posY === null) return;
+
+    const speed = Math.abs(velYRef.current);
+    const heightStretch = 1 + Math.min(speed * HEIGHT_STRETCH_PER_VELOCITY, MAX_HEIGHT_STRETCH);
+    const depthStretch = 1 + Math.min(speed * DEPTH_STRETCH_PER_VELOCITY, MAX_DEPTH_STRETCH);
+    const squash = Math.min(speed * BUBBLE_SQUASH_PER_VELOCITY, MAX_BUBBLE_SQUASH);
+
+    const box = asideBoxRef.current;
+    asideEl.style.clipPath = buildNotchClipPath(
+      box.width,
+      box.height,
+      posY,
+      NOTCH_HALF_HEIGHT * heightStretch,
+      NOTCH_DEPTH * depthStretch,
+    );
+
+    const absoluteY = box.top + posY;
+    if (bubbleEl) {
+      bubbleEl.style.left = `${box.right - BUBBLE_RADIUS}px`;
+      bubbleEl.style.top = `${absoluteY - BUBBLE_RADIUS}px`;
+      bubbleEl.style.transform = `scaleY(${1 + squash}) scaleX(${1 - squash * 0.6})`;
+    }
+    if (glowEl) {
+      glowEl.style.left = `${box.right - BUBBLE_RADIUS - (GLOW_SIZE - NOTCH_BUBBLE_SIZE) / 2}px`;
+      glowEl.style.top = `${absoluteY - BUBBLE_RADIUS - (GLOW_SIZE - NOTCH_BUBBLE_SIZE) / 2}px`;
+    }
+  }
+
+  function stepSpring(now: number, last: number) {
+    const target = targetYRef.current;
+    if (target === null || posYRef.current === null) {
+      rafRef.current = null;
+      return;
+    }
+    const dt = Math.min((now - last) / 1000, 1 / 30);
+
+    const dY = target - posYRef.current;
+    const acc = dY * STIFFNESS - velYRef.current * DAMPING;
+    velYRef.current += acc * dt;
+    posYRef.current += velYRef.current * dt;
+
+    applyFrame();
+
+    const settled = Math.abs(dY) < 0.3 && Math.abs(velYRef.current) < 0.3;
+    if (settled) {
+      posYRef.current = target;
+      velYRef.current = 0;
+      applyFrame();
+      rafRef.current = null;
+      return;
+    }
+    rafRef.current = requestAnimationFrame((n) => stepSpring(n, now));
+  }
+
+  function startSpring() {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame((n) => stepSpring(n, n));
+  }
+
+  function recomputeTarget() {
     const asideEl = asideRef.current;
     const selected = selectedFolderId ? itemRefs.current.get(selectedFolderId) : undefined;
     if (!asideEl || !selected) {
-      setNotch(null);
+      targetYRef.current = null;
+      posYRef.current = null;
+      setBubbleVisible(false);
       return;
     }
+
     const asideRect = asideEl.getBoundingClientRect();
     const buttonRect = selected.getBoundingClientRect();
-    const centerY = buttonRect.top + buttonRect.height / 2 - asideRect.top;
+    asideBoxRef.current = {
+      width: asideRect.width,
+      height: asideRect.height,
+      top: asideRect.top,
+      right: asideRect.right,
+    };
+    targetYRef.current = buttonRect.top + buttonRect.height / 2 - asideRect.top;
+
     const folder = folders.find((f) => f.id === selectedFolderId);
-    const BubbleIcon = (folder?.special_use && folderIcons[folder.special_use]) || Folder;
+    const Icon = (folder?.special_use && folderIcons[folder.special_use]) || Folder;
+    setActiveIcon(() => Icon);
+    setBubbleVisible(true);
 
-    setNotch({
-      clipPath: buildNotchClipPath(asideRect.width, asideRect.height, centerY),
-      bubbleLeft: asideRect.right - BUBBLE_RADIUS,
-      bubbleTop: buttonRect.top + buttonRect.height / 2 - BUBBLE_RADIUS,
-      BubbleIcon,
-    });
+    if (posYRef.current === null) {
+      posYRef.current = targetYRef.current;
+      velYRef.current = 0;
+      applyFrame();
+      return;
+    }
+    startSpring();
   }
 
-  function scheduleRecomputeNotch() {
-    if (notchRafRef.current) return;
-    notchRafRef.current = requestAnimationFrame(() => {
-      notchRafRef.current = null;
-      recomputeNotch();
-    });
-  }
+  const selectedFolderIdRef = useRef(selectedFolderId);
+  useEffect(() => {
+    selectedFolderIdRef.current = selectedFolderId;
+  }, [selectedFolderId]);
 
   useLayoutEffect(() => {
-    recomputeNotch();
+    recomputeTarget();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFolderId, folders]);
 
@@ -122,17 +210,37 @@ export function Sidebar() {
     const navEl = navRef.current;
     if (!asideEl) return;
 
-    const observer = new ResizeObserver(() => scheduleRecomputeNotch());
+    function handleGeometryChange() {
+      const currentId = selectedFolderIdRef.current;
+      if (!currentId) return;
+      const asideRect = asideEl!.getBoundingClientRect();
+      const selected = itemRefs.current.get(currentId);
+      if (!selected) return;
+      const buttonRect = selected.getBoundingClientRect();
+      asideBoxRef.current = {
+        width: asideRect.width,
+        height: asideRect.height,
+        top: asideRect.top,
+        right: asideRect.right,
+      };
+      targetYRef.current = buttonRect.top + buttonRect.height / 2 - asideRect.top;
+      startSpring();
+    }
+
+    const observer = new ResizeObserver(handleGeometryChange);
     observer.observe(asideEl);
 
-    window.addEventListener("resize", scheduleRecomputeNotch);
-    navEl?.addEventListener("scroll", scheduleRecomputeNotch, { passive: true });
+    window.addEventListener("resize", handleGeometryChange);
+    navEl?.addEventListener("scroll", handleGeometryChange, { passive: true });
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", scheduleRecomputeNotch);
-      navEl?.removeEventListener("scroll", scheduleRecomputeNotch);
-      if (notchRafRef.current) cancelAnimationFrame(notchRafRef.current);
+      window.removeEventListener("resize", handleGeometryChange);
+      navEl?.removeEventListener("scroll", handleGeometryChange);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -140,8 +248,8 @@ export function Sidebar() {
   return (
     <aside
       ref={asideRef}
-      className="glass-panel relative flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 p-3"
-      style={notch ? { clipPath: notch.clipPath, transition: `clip-path 320ms ${NOTCH_EASE}` } : undefined}
+      className="glass-panel relative flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 p-3 dark:border-r-accent/40"
+      style={{ filter: "drop-shadow(0 6px 18px rgba(15, 23, 42, 0.16))" }}
     >
       <div className="mb-3 flex flex-col gap-0.5">
         {accounts.length > 1 ? (
@@ -242,23 +350,31 @@ export function Sidebar() {
 
       <FolderModal />
 
-      {notch &&
-        createPortal(
+      {createPortal(
+        <>
           <div
+            ref={glowRef}
             aria-hidden
-            className="pointer-events-none fixed z-30 flex items-center justify-center rounded-full bg-accent text-white shadow-glass-lg"
-            style={{
-              left: notch.bubbleLeft,
-              top: notch.bubbleTop,
-              width: NOTCH_BUBBLE_SIZE,
-              height: NOTCH_BUBBLE_SIZE,
-              transition: `left 320ms ${NOTCH_EASE}, top 320ms ${NOTCH_EASE}`,
-            }}
+            className={clsx(
+              "pointer-events-none fixed z-20 rounded-full bg-accent/25 blur-xl transition-opacity duration-200 dark:bg-accent/30",
+              bubbleVisible ? "opacity-100" : "opacity-0",
+            )}
+            style={{ width: GLOW_SIZE, height: GLOW_SIZE }}
+          />
+          <div
+            ref={bubbleRef}
+            aria-hidden
+            className={clsx(
+              "pointer-events-none fixed z-30 flex items-center justify-center rounded-full bg-accent text-white shadow-glass-lg ring-4 ring-white/70 transition-opacity duration-200 dark:ring-neutral-900/70",
+              bubbleVisible ? "opacity-100" : "opacity-0",
+            )}
+            style={{ width: NOTCH_BUBBLE_SIZE, height: NOTCH_BUBBLE_SIZE }}
           >
-            <notch.BubbleIcon size={19} strokeWidth={1.75} />
-          </div>,
-          document.body,
-        )}
+            <ActiveIcon size={19} strokeWidth={1.75} />
+          </div>
+        </>,
+        document.body,
+      )}
     </aside>
   );
 }

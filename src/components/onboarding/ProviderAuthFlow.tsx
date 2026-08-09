@@ -5,19 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import * as commands from "@/lib/commands";
 import { useT } from "@/lib/useT";
+import { providerLabel } from "@/lib/providerLabels";
 import type { ImapConnection, Provider, SmtpConnection } from "@/types/mail";
-
-const providerLabel: Record<Provider, string> = {
-  gmail: "Google",
-  outlook: "Microsoft",
-  yahoo: "Yahoo",
-  icloud: "iCloud",
-  custom: "Custom",
-};
 
 interface ProviderAuthFlowProps {
   provider: Provider;
   onBack: () => void;
+  onUseAppPassword: () => void;
   onConnected: (result: {
     email: string;
     displayName: string;
@@ -29,7 +23,7 @@ interface ProviderAuthFlowProps {
   }) => void;
 }
 
-export function ProviderAuthFlow({ provider, onBack, onConnected }: ProviderAuthFlowProps) {
+export function ProviderAuthFlow({ provider, onBack, onUseAppPassword, onConnected }: ProviderAuthFlowProps) {
   const t = useT();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -129,6 +123,14 @@ export function ProviderAuthFlow({ provider, onBack, onConnected }: ProviderAuth
           <ShieldCheck size={13} strokeWidth={1.5} />
           {t("authFlow.secured")}
         </p>
+
+        <button
+          type="button"
+          onClick={onUseAppPassword}
+          className="text-center text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:underline dark:text-neutral-400 dark:hover:text-neutral-200"
+        >
+          {t("authFlow.useAppPassword", { provider: providerLabel[provider] })}
+        </button>
       </form>
     </div>
   );

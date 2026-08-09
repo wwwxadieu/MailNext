@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import * as commands from "@/lib/commands";
 import { useT } from "@/lib/useT";
+import { providerLabel } from "@/lib/providerLabels";
 import type { ImapConnection, MailServerConfig, Provider, SmtpConnection } from "@/types/mail";
 
 interface PasswordProviderFlowProps {
@@ -87,7 +88,9 @@ export function PasswordProviderFlow({ provider, onBack, onConnected }: Password
           {isCustom ? t("passwordFlow.customTitle") : t("passwordFlow.appPasswordTitle")}
         </h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          {isCustom ? t("passwordFlow.customSubtitle") : t("passwordFlow.icloudSubtitle")}
+          {isCustom
+            ? t("passwordFlow.customSubtitle")
+            : t("passwordFlow.appPasswordSubtitle", { provider: providerLabel[provider] })}
         </p>
       </div>
 

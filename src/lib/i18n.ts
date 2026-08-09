@@ -91,7 +91,7 @@ const en: Dict = {
   "passwordFlow.customTitle": "Add a custom or enterprise account",
   "passwordFlow.appPasswordTitle": "Sign in with an app-specific password",
   "passwordFlow.customSubtitle": "Enter your mail provider's IMAP and SMTP server details.",
-  "passwordFlow.icloudSubtitle": "iCloud Mail requires an app-specific password. Generate one at appleid.apple.com under Sign-In and Security.",
+  "passwordFlow.appPasswordSubtitle": "Generate an app-specific password for MailNext in your {provider} account's security settings, then enter it below.",
   "passwordFlow.yourName": "Your name",
   "passwordFlow.emailAddress": "Email address",
   "passwordFlow.password": "Password",
@@ -112,6 +112,7 @@ const en: Dict = {
   "authFlow.waiting": "Waiting for browser sign-in…",
   "authFlow.verifying": "Verifying account…",
   "authFlow.secured": "Secured with OAuth2 and PKCE",
+  "authFlow.useAppPassword": "Sign in with an app-specific password instead",
 
   "settings.title": "Settings",
   "settings.tab.general": "General",
@@ -330,7 +331,7 @@ const vi: Dict = {
   "passwordFlow.customTitle": "Thêm tài khoản tên miền riêng / doanh nghiệp",
   "passwordFlow.appPasswordTitle": "Đăng nhập bằng mật khẩu ứng dụng",
   "passwordFlow.customSubtitle": "Nhập thông tin máy chủ IMAP và SMTP của nhà cung cấp email của bạn.",
-  "passwordFlow.icloudSubtitle": "iCloud Mail yêu cầu mật khẩu dành riêng cho ứng dụng. Tạo mật khẩu tại appleid.apple.com trong mục Đăng nhập và Bảo mật.",
+  "passwordFlow.appPasswordSubtitle": "Tạo một mật khẩu dành riêng cho ứng dụng (app-specific password) cho MailNext trong phần cài đặt bảo mật tài khoản {provider} của bạn, sau đó nhập vào bên dưới.",
   "passwordFlow.yourName": "Tên của bạn",
   "passwordFlow.emailAddress": "Địa chỉ email",
   "passwordFlow.password": "Mật khẩu",
@@ -351,6 +352,7 @@ const vi: Dict = {
   "authFlow.waiting": "Đang chờ đăng nhập trên trình duyệt…",
   "authFlow.verifying": "Đang xác minh tài khoản…",
   "authFlow.secured": "Bảo mật bằng OAuth2 và PKCE",
+  "authFlow.useAppPassword": "Đăng nhập bằng mật khẩu ứng dụng thay thế",
 
   "settings.title": "Cài đặt",
   "settings.tab.general": "Chung",
