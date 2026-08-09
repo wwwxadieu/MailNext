@@ -1,10 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
-import { Archive, Flag, Loader2, Mail, Paperclip, Reply, Send, Sparkles, Trash2, X } from "lucide-react";
+import {
+  Archive,
+  Flag,
+  Loader2,
+  Mail,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  Reply,
+  Send,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { HtmlMessageFrame } from "@/components/mail/HtmlMessageFrame";
+import { RichTextEditor } from "@/components/mail/RichTextEditor";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
+import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
 import { extractPlainText } from "@/lib/text";
@@ -20,6 +35,8 @@ export function EmailView() {
   const messages = useMailStore((s) => s.messages);
   const selectedMessageId = useMailStore((s) => s.selectedMessageId);
   const toggleFlag = useMailStore((s) => s.toggleFlag);
+  const isReadingPaneExpanded = useUiStore((s) => s.isReadingPaneExpanded);
+  const toggleReadingPaneExpanded = useUiStore((s) => s.toggleReadingPaneExpanded);
 
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
   const message = messages.find((m) => m.id === selectedMessageId) ?? null;
@@ -43,7 +60,15 @@ export function EmailView() {
 
   if (!message) {
     return (
-      <section className="glass-panel flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-0 text-neutral-400">
+      <section className="glass-panel relative flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-0 text-neutral-400">
+        <div className="absolute right-3 top-3">
+          <ActionButton
+            label={t(isReadingPaneExpanded ? "emailView.collapse" : "emailView.expand")}
+            onClick={toggleReadingPaneExpanded}
+          >
+            {isReadingPaneExpanded ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
+          </ActionButton>
+        </div>
         <Mail size={32} strokeWidth={1.2} />
         <p className="text-sm">{t("emailView.selectMessage")}</p>
       </section>
@@ -61,8 +86,8 @@ export function EmailView() {
         cc: [],
         bcc: [],
         subject: message.subject.toLowerCase().startsWith("re:") ? message.subject : `Re: ${message.subject}`,
-        bodyText: replyBody,
-        bodyHtml: `<p>${escapeHtml(replyBody).replace(/\n/g, "<br />")}</p>`,
+        bodyText: extractPlainText(null, replyBody),
+        bodyHtml: replyBody,
         inReplyTo: message.message_id || null,
         references: message.message_id ? [message.message_id] : [],
         attachments: [],
@@ -137,6 +162,16 @@ export function EmailView() {
             <ActionButton label={t("emailView.delete")} onClick={handleDelete}>
               <Trash2 size={15} strokeWidth={1.5} />
             </ActionButton>
+            <ActionButton
+              label={t(isReadingPaneExpanded ? "emailView.collapse" : "emailView.expand")}
+              onClick={toggleReadingPaneExpanded}
+            >
+              {isReadingPaneExpanded ? (
+                <Minimize2 size={15} strokeWidth={1.5} />
+              ) : (
+                <Maximize2 size={15} strokeWidth={1.5} />
+              )}
+            </ActionButton>
           </div>
         </div>
 
@@ -198,12 +233,11 @@ export function EmailView() {
       {replyOpen && (
         <div className="flex-shrink-0 border-t border-black/5 dark:border-white/10 p-4">
           <div className="glass-panel rounded-xl p-3">
-            <textarea
+            <RichTextEditor
               value={replyBody}
-              onChange={(e) => setReplyBody(e.target.value)}
+              onChange={setReplyBody}
               placeholder={t("emailView.replyPlaceholder", { name: message.from_name || message.from_address || "" })}
-              rows={4}
-              className="w-full resize-none bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
+              minHeightClassName="min-h-[90px]"
               autoFocus
             />
             {sendError && <p className="mt-1 text-xs text-danger">{sendError}</p>}
@@ -216,7 +250,7 @@ export function EmailView() {
               </button>
               <button
                 onClick={handleSendReply}
-                disabled={sending || !replyBody.trim()}
+                disabled={sending || !extractPlainText(null, replyBody).trim()}
                 className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40"
               >
                 {sending ? <Loader2 size={13} className="animate-spin" strokeWidth={1.5} /> : <Send size={13} strokeWidth={1.5} />}
@@ -261,13 +295,4 @@ function safeFormat(date: string): string {
   } catch {
     return date;
   }
-}
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

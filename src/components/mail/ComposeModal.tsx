@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Loader2, Paperclip, Send, X } from "lucide-react";
 import { createPortal } from "react-dom";
+import { RichTextEditor } from "@/components/mail/RichTextEditor";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
 import { toSmtpConnection } from "@/lib/connection";
+import { extractPlainText } from "@/lib/text";
 import { useT } from "@/lib/useT";
 import type { OutgoingAttachment, OutgoingMessage } from "@/types/mail";
 
@@ -29,8 +31,8 @@ export function ComposeModal() {
     void repo.listSignatures(activeAccount.id).then((signatures) => {
       if (cancelled) return;
       const defaultSignature = signatures.find((s) => s.is_default === 1);
-      if (defaultSignature?.content_text) {
-        setBody((current) => (current ? current : `\n\n${defaultSignature.content_text}`));
+      if (defaultSignature?.content_html) {
+        setBody((current) => (current ? current : `<br><br>${defaultSignature.content_html}`));
       }
     });
     return () => {
@@ -70,8 +72,8 @@ export function ComposeModal() {
         cc: parseAddressList(cc),
         bcc: [],
         subject,
-        bodyText: body,
-        bodyHtml: `<div style="white-space:pre-wrap">${escapeHtml(body)}</div>`,
+        bodyText: extractPlainText(null, body),
+        bodyHtml: body,
         inReplyTo: null,
         references: [],
         attachments,
@@ -121,13 +123,9 @@ export function ComposeModal() {
           />
         </div>
 
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={8}
-          placeholder={t("compose.bodyPlaceholder")}
-          className="resize-none bg-transparent px-4 py-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
-        />
+        <div className="px-4 py-2">
+          <RichTextEditor value={body} onChange={setBody} placeholder={t("compose.bodyPlaceholder")} minHeightClassName="min-h-[160px]" />
+        </div>
 
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-4 pb-2">
@@ -162,13 +160,4 @@ export function ComposeModal() {
     </div>,
     document.body,
   );
-}
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

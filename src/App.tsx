@@ -13,6 +13,7 @@ import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
 import { useLocaleStore } from "@/store/useLocaleStore";
 import { useUpdateStore } from "@/store/useUpdateStore";
+import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
 import { getSetting } from "@/lib/repository";
@@ -38,6 +39,7 @@ export default function App() {
   const loadMessages = useMailStore((s) => s.loadMessages);
 
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
+  const isReadingPaneExpanded = useUiStore((s) => s.isReadingPaneExpanded);
 
   const [bootstrapped, setBootstrapped] = useState(false);
 
@@ -108,7 +110,7 @@ export default function App() {
     <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        {!isReadingPaneExpanded && <Sidebar />}
         <EmailList />
         <EmailView />
       </div>
