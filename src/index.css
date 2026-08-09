@@ -69,6 +69,72 @@ textarea,
   background: rgb(128 128 128 / 0.55);
 }
 
+@keyframes welcome-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes welcome-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes welcome-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-glow {
+  background:
+    radial-gradient(680px 480px at 22% 18%, rgb(10 132 255 / 0.14), transparent 60%),
+    radial-gradient(620px 520px at 82% 78%, rgb(10 132 255 / 0.08), transparent 60%);
+}
+
+.dark .welcome-glow {
+  background:
+    radial-gradient(680px 480px at 22% 18%, rgb(10 132 255 / 0.26), transparent 60%),
+    radial-gradient(620px 520px at 82% 78%, rgb(10 132 255 / 0.12), transparent 60%);
+}
+
+.welcome-card-in {
+  animation: welcome-card-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.welcome-mark-in {
+  animation: welcome-mark-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.05s;
+}
+
+.welcome-rise-in {
+  animation: welcome-rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-card-in,
+  .welcome-mark-in,
+  .welcome-rise-in {
+    animation: none !important;
+  }
+}
+
 @layer components {
   .glass-panel {
     @apply bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm;

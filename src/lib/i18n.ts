@@ -118,6 +118,18 @@ const en: Dict = {
   "onboarding.welcome": "Welcome to MailNext",
   "onboarding.subtitle": "Add an email account to get started",
   "onboarding.customDomain": "Custom domain / enterprise email",
+
+  "welcome.title": "Welcome to MailNext",
+  "welcome.subtitle": "Fast, secure, and clutter-free email — built for Windows 11.",
+  "welcome.syncTitle": "Instant sync",
+  "welcome.syncDesc": "New mail shows up right away, with clear progress on the first sync.",
+  "welcome.securityTitle": "Secure sign-in",
+  "welcome.securityDesc": "OAuth2 or app passwords for Gmail, Outlook, Yahoo, and iCloud.",
+  "welcome.rulesTitle": "Smart organization",
+  "welcome.rulesDesc": "Rules and automatic categories keep your inbox tidy.",
+  "welcome.accountsTitle": "Every account, one place",
+  "welcome.accountsDesc": "Bring your personal and work email into a single view.",
+  "welcome.continue": "Continue",
   "onboarding.credentialsNote": "Credentials are stored locally and never leave your device",
 
   "passwordFlow.back": "Back",
@@ -390,6 +402,18 @@ const vi: Dict = {
 
   "onboarding.welcome": "Chào mừng đến với MailNext",
   "onboarding.subtitle": "Thêm một tài khoản email để bắt đầu",
+
+  "welcome.title": "Chào mừng đến với MailNext",
+  "welcome.subtitle": "Email nhanh, an toàn và gọn gàng — thiết kế riêng cho Windows 11.",
+  "welcome.syncTitle": "Đồng bộ tức thì",
+  "welcome.syncDesc": "Thư mới hiện ngay lập tức, kèm tiến trình rõ ràng khi đồng bộ lần đầu.",
+  "welcome.securityTitle": "Đăng nhập an toàn",
+  "welcome.securityDesc": "OAuth2 hoặc mật khẩu ứng dụng cho Gmail, Outlook, Yahoo và iCloud.",
+  "welcome.rulesTitle": "Tự động sắp xếp",
+  "welcome.rulesDesc": "Quy tắc và phân loại thông minh giữ hộp thư luôn gọn gàng.",
+  "welcome.accountsTitle": "Nhiều tài khoản, một nơi",
+  "welcome.accountsDesc": "Gộp toàn bộ email cá nhân và công việc vào một giao diện duy nhất.",
+  "welcome.continue": "Tiếp tục",
   "onboarding.customDomain": "Tên miền riêng / email doanh nghiệp",
   "onboarding.credentialsNote": "Thông tin đăng nhập được lưu trên máy của bạn và không bao giờ rời khỏi thiết bị",
 

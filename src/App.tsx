@@ -9,6 +9,7 @@ import { ComposeModal } from "@/components/mail/ComposeModal";
 import { FloatingComposeButton } from "@/components/mail/FloatingComposeButton";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { WelcomeScreen } from "@/components/onboarding/WelcomeScreen";
 import { UpdateBanner } from "@/components/update/UpdateBanner";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
@@ -18,7 +19,7 @@ import { useUpdateStore } from "@/store/useUpdateStore";
 import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
-import { getSetting } from "@/lib/repository";
+import { getSetting, setSetting } from "@/lib/repository";
 import { playChime } from "@/lib/sound";
 import type { ChimeId } from "@/lib/sound";
 
@@ -44,10 +45,21 @@ export default function App() {
   const isReadingPaneExpanded = useUiStore((s) => s.isReadingPaneExpanded);
 
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [welcomeSeen, setWelcomeSeen] = useState(true);
 
   useEffect(() => {
-    void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts()]).then(() => setBootstrapped(true));
+    void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts(), getSetting("welcome_seen")]).then(
+      ([, , , seen]) => {
+        setWelcomeSeen(seen === "true");
+        setBootstrapped(true);
+      },
+    );
   }, []);
+
+  function dismissWelcome() {
+    setWelcomeSeen(true);
+    void setSetting("welcome_seen", "true");
+  }
 
   // Check for app updates shortly after launch, then periodically in the
   // background — never in the middle of a download already in progress.
@@ -102,7 +114,11 @@ export default function App() {
     return (
       <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
         <TitleBar />
-        <Onboarding onComplete={() => {}} />
+        {welcomeSeen ? (
+          <Onboarding onComplete={() => {}} />
+        ) : (
+          <WelcomeScreen onContinue={dismissWelcome} />
+        )}
         <UpdateBanner />
       </div>
     );
