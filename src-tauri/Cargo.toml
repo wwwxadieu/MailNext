@@ -1,6 +1,6 @@
 [package]
 name = "mailnext"
-version = "0.3.2"
+version = "0.3.3"
 description = "MailNext — a native email client for Windows 11."
 authors = ["MailNext"]
 edition = "2021"
@@ -42,7 +42,7 @@ lettre = { version = "0.11", default-features = false, features = [
 ] }
 
 # OAuth2
-oauth2 = { version = "4.4", default-features = false, features = ["reqwest"] }
+oauth2 = { version = "4.4", default-features = false, features = ["reqwest", "native-tls"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
 tiny_http = "0.12"
 
