@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import {
   Archive,
   FilePenLine,
@@ -21,7 +21,6 @@ import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
-import { useLiquidIndicator, type LiquidTarget } from "@/lib/useLiquidIndicator";
 import type { FolderRow, SpecialUse } from "@/types/mail";
 
 function folderLabel(t: ReturnType<typeof useT>, folder: FolderRow): string {
@@ -65,18 +64,6 @@ export function Sidebar() {
     selectFolder(folder.id);
     if (activeAccount) void loadMessages(activeAccount, folder);
   }
-
-  const itemRefs = useRef(new Map<string, HTMLButtonElement>());
-  const indicatorRef = useRef<HTMLDivElement>(null);
-  const trailRef = useRef<HTMLDivElement>(null);
-  const [indicatorTarget, setIndicatorTarget] = useState<LiquidTarget | null>(null);
-
-  useEffect(() => {
-    const el = selectedFolderId ? itemRefs.current.get(selectedFolderId) : undefined;
-    setIndicatorTarget(el ? { top: el.offsetTop, height: el.offsetHeight } : null);
-  }, [selectedFolderId, folders]);
-
-  useLiquidIndicator(indicatorRef, trailRef, indicatorTarget);
 
   return (
     <aside className="glass-panel flex w-60 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 p-3">
@@ -126,53 +113,18 @@ export function Sidebar() {
         {t("sidebar.compose")}
       </button>
 
-      <nav className="relative flex-1 space-y-0.5 overflow-y-auto">
-        <svg aria-hidden className="absolute h-0 w-0">
-          <defs>
-            <filter id="mailnext-sidebar-goo" colorInterpolationFilters="sRGB">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur" />
-              <feColorMatrix
-                in="blur"
-                mode="matrix"
-                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"
-                result="goo"
-              />
-              <feBlend in="SourceGraphic" in2="goo" />
-            </filter>
-          </defs>
-        </svg>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{ filter: "url(#mailnext-sidebar-goo)" }}
-        >
-          <div
-            ref={trailRef}
-            className="absolute inset-x-2 rounded-full bg-gradient-to-br from-accent/25 to-accent/10 opacity-0 dark:from-accent/35 dark:to-accent/15"
-            style={{ willChange: "transform" }}
-          />
-          <div
-            ref={indicatorRef}
-            className="absolute inset-x-0 rounded-lg bg-gradient-to-br from-accent/30 to-accent/12 opacity-0 ring-1 ring-white/40 dark:from-accent/40 dark:to-accent/18 dark:ring-white/10"
-            style={{ willChange: "transform" }}
-          />
-        </div>
-
+      <nav className="flex-1 space-y-0.5 overflow-y-auto">
         {folders.map((folder) => {
           const Icon = (folder.special_use && folderIcons[folder.special_use]) || Folder;
           return (
             <button
               key={folder.id}
-              ref={(el) => {
-                if (el) itemRefs.current.set(folder.id, el);
-                else itemRefs.current.delete(folder.id);
-              }}
               onClick={() => handleSelectFolder(folder)}
               className={clsx(
-                "relative z-10 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
                 folder.id === selectedFolderId
-                  ? "text-accent font-medium"
-                  : "text-neutral-600 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
+                  ? "border border-white/50 bg-white/60 text-accent font-medium shadow-glass-sm backdrop-blur-md dark:border-white/10 dark:bg-white/10"
+                  : "border border-transparent text-neutral-600 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10",
               )}
             >
               <Icon size={15} strokeWidth={1.5} className="flex-shrink-0" />
@@ -188,7 +140,7 @@ export function Sidebar() {
 
         <button
           onClick={openFolderModal}
-          className="relative z-10 mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10"
+          className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10"
         >
           <Plus size={15} strokeWidth={1.5} />
           {t("sidebar.newFolder")}
