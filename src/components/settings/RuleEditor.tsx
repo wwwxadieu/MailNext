@@ -5,19 +5,21 @@ import { Modal } from "@/components/ui/Modal";
 import { TextField } from "@/components/ui/TextField";
 import * as repo from "@/lib/repository";
 import { parseActions, parseConditions } from "@/lib/rules";
+import { useT } from "@/lib/useT";
 import type { FolderRow, LabelRow, RuleAction, RuleCondition, RuleField, RuleOperator, RuleRow } from "@/types/mail";
 
-const FIELD_LABELS: Record<RuleField, string> = {
-  from: "From",
-  to: "To",
-  subject: "Subject",
-  body: "Body",
+const FIELDS: RuleField[] = ["from", "to", "subject", "body"];
+const OPERATORS: RuleOperator[] = ["contains", "equals", "starts_with"];
+const FIELD_KEYS: Record<RuleField, string> = {
+  from: "rules.field.from",
+  to: "rules.field.to",
+  subject: "rules.field.subject",
+  body: "rules.field.body",
 };
-
-const OPERATOR_LABELS: Record<RuleOperator, string> = {
-  contains: "contains",
-  equals: "is exactly",
-  starts_with: "starts with",
+const OPERATOR_KEYS: Record<RuleOperator, string> = {
+  contains: "rules.operator.contains",
+  equals: "rules.operator.equals",
+  starts_with: "rules.operator.startsWith",
 };
 
 function emptyCondition(): RuleCondition {
@@ -35,6 +37,7 @@ interface RuleEditorProps {
 }
 
 export function RuleEditor({ open, onClose, accountId, folders, labels, rule, onSaved }: RuleEditorProps) {
+  const t = useT();
   const [name, setName] = useState(rule?.name ?? "");
   const [matchType, setMatchType] = useState<"all" | "any">(rule?.match_type ?? "all");
   const [conditions, setConditions] = useState<RuleCondition[]>(
@@ -57,7 +60,7 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
   async function handleSave() {
     const cleanConditions = conditions.filter((c) => c.value.trim().length > 0);
     if (!name.trim() || cleanConditions.length === 0 || actions.length === 0) {
-      setError("Give the rule a name, at least one condition with a value, and at least one action.");
+      setError(t("ruleEditor.validationError"));
       return;
     }
     setSaving(true);
@@ -79,24 +82,24 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={rule ? "Edit rule" : "New rule"} widthClassName="max-w-lg">
+    <Modal open={open} onClose={onClose} title={rule ? t("ruleEditor.editTitle") : t("ruleEditor.newTitle")} widthClassName="max-w-lg">
       <div className="flex flex-col gap-4">
-        <TextField label="Rule name" placeholder="Newsletters to Archive" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <TextField label={t("ruleEditor.nameLabel")} placeholder={t("ruleEditor.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Conditions</p>
+            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("ruleEditor.conditions")}</p>
             <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Match
+              {t("ruleEditor.match")}
               <select
                 value={matchType}
                 onChange={(e) => setMatchType(e.target.value as "all" | "any")}
                 className="rounded-md border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-1.5 py-0.5 text-xs text-neutral-800 dark:text-neutral-100"
               >
-                <option value="all">all</option>
-                <option value="any">any</option>
+                <option value="all">{t("ruleEditor.matchAll")}</option>
+                <option value="any">{t("ruleEditor.matchAny")}</option>
               </select>
-              of the following
+              {t("ruleEditor.ofTheFollowing")}
             </div>
           </div>
 
@@ -107,9 +110,9 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
                 onChange={(e) => updateCondition(index, { field: e.target.value as RuleField })}
                 className="h-8 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-2 text-xs text-neutral-800 dark:text-neutral-100"
               >
-                {(Object.keys(FIELD_LABELS) as RuleField[]).map((field) => (
+                {FIELDS.map((field) => (
                   <option key={field} value={field}>
-                    {FIELD_LABELS[field]}
+                    {t(FIELD_KEYS[field])}
                   </option>
                 ))}
               </select>
@@ -118,21 +121,21 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
                 onChange={(e) => updateCondition(index, { operator: e.target.value as RuleOperator })}
                 className="h-8 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-2 text-xs text-neutral-800 dark:text-neutral-100"
               >
-                {(Object.keys(OPERATOR_LABELS) as RuleOperator[]).map((op) => (
+                {OPERATORS.map((op) => (
                   <option key={op} value={op}>
-                    {OPERATOR_LABELS[op]}
+                    {t(OPERATOR_KEYS[op])}
                   </option>
                 ))}
               </select>
               <input
                 value={condition.value}
                 onChange={(e) => updateCondition(index, { value: e.target.value })}
-                placeholder="value"
+                placeholder={t("ruleEditor.valuePlaceholder")}
                 className="h-8 flex-1 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-2 text-xs text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
               />
               <button
                 onClick={() => setConditions((current) => current.filter((_, i) => i !== index))}
-                aria-label="Remove condition"
+                aria-label={t("ruleEditor.removeCondition")}
                 className="flex-shrink-0 text-neutral-400 hover:text-danger"
               >
                 <Trash2 size={13} strokeWidth={1.5} />
@@ -145,12 +148,12 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
             className="flex w-fit items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover"
           >
             <Plus size={12} strokeWidth={1.5} />
-            Add condition
+            {t("ruleEditor.addCondition")}
           </button>
         </div>
 
         <div className="flex flex-col gap-2 border-t border-black/5 dark:border-white/10 pt-3">
-          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Then do this</p>
+          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("ruleEditor.thenDoThis")}</p>
 
           {actions.map((action, index) => (
             <div key={index} className="flex items-center gap-1.5">
@@ -164,10 +167,10 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
                 }}
                 className="h-8 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-2 text-xs text-neutral-800 dark:text-neutral-100"
               >
-                <option value="move">Move to folder</option>
-                <option value="mark_read">Mark as read</option>
-                <option value="flag">Flag</option>
-                <option value="add_label">Add label</option>
+                <option value="move">{t("ruleEditor.actionMove")}</option>
+                <option value="mark_read">{t("ruleEditor.actionMarkRead")}</option>
+                <option value="flag">{t("ruleEditor.actionFlag")}</option>
+                <option value="add_label">{t("ruleEditor.actionAddLabel")}</option>
               </select>
 
               {action.type === "move" && (
@@ -178,7 +181,7 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
                 >
                   {moveFolders.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name}
+                      {f.special_use ? t(`folder.${f.special_use}`) : f.name}
                     </option>
                   ))}
                 </select>
@@ -190,7 +193,7 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
                   onChange={(e) => updateAction(index, { type: "add_label", labelId: e.target.value })}
                   className="h-8 flex-1 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-2 text-xs text-neutral-800 dark:text-neutral-100"
                 >
-                  {labels.length === 0 && <option value="">No labels yet</option>}
+                  {labels.length === 0 && <option value="">{t("ruleEditor.noLabelsYet")}</option>}
                   {labels.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
@@ -201,7 +204,7 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
 
               <button
                 onClick={() => setActions((current) => current.filter((_, i) => i !== index))}
-                aria-label="Remove action"
+                aria-label={t("ruleEditor.removeAction")}
                 className="flex-shrink-0 text-neutral-400 hover:text-danger"
               >
                 <Trash2 size={13} strokeWidth={1.5} />
@@ -214,7 +217,7 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
             className="flex w-fit items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover"
           >
             <Plus size={12} strokeWidth={1.5} />
-            Add action
+            {t("ruleEditor.addAction")}
           </button>
         </div>
 
@@ -222,10 +225,10 @@ export function RuleEditor({ open, onClose, accountId, folders, labels, rule, on
 
         <div className="flex justify-end gap-2 border-t border-black/5 dark:border-white/10 pt-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t("ruleEditor.cancel")}
           </Button>
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-            Save rule
+            {t("ruleEditor.save")}
           </Button>
         </div>
       </div>

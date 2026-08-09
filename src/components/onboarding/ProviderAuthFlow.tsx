@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import * as commands from "@/lib/commands";
+import { useT } from "@/lib/useT";
 import type { ImapConnection, Provider, SmtpConnection } from "@/types/mail";
 
 const providerLabel: Record<Provider, string> = {
@@ -29,6 +30,7 @@ interface ProviderAuthFlowProps {
 }
 
 export function ProviderAuthFlow({ provider, onBack, onConnected }: ProviderAuthFlowProps) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState<"idle" | "authorizing" | "verifying" | "error">("idle");
@@ -83,29 +85,28 @@ export function ProviderAuthFlow({ provider, onBack, onConnected }: ProviderAuth
         className="flex w-fit items-center gap-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100"
       >
         <ArrowLeft size={14} strokeWidth={1.5} />
-        Back
+        {t("authFlow.back")}
       </button>
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-          Sign in with {providerLabel[provider]}
+          {t("authFlow.title", { provider: providerLabel[provider] })}
         </h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          MailNext opens your browser to sign in securely with {providerLabel[provider]}. Your password
-          is never seen by this app.
+          {t("authFlow.subtitle", { provider: providerLabel[provider] })}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <TextField
-          label="Your name"
+          label={t("authFlow.yourName")}
           placeholder="Jordan Avery"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           autoFocus
         />
         <TextField
-          label={`${providerLabel[provider]} email address`}
+          label={t("authFlow.emailAddress", { provider: providerLabel[provider] })}
           type="email"
           placeholder="you@example.com"
           value={email}
@@ -117,18 +118,16 @@ export function ProviderAuthFlow({ provider, onBack, onConnected }: ProviderAuth
         <Button type="submit" variant="primary" size="lg" disabled={!canSubmit} className="mt-2">
           {status === "authorizing" && <Loader2 size={16} className="animate-spin" strokeWidth={1.5} />}
           {status === "verifying" && <Loader2 size={16} className="animate-spin" strokeWidth={1.5} />}
-          {status === "idle" || status === "error" ? (
-            <>Continue with {providerLabel[provider]}</>
-          ) : status === "authorizing" ? (
-            "Waiting for browser sign-in…"
-          ) : (
-            "Verifying account…"
-          )}
+          {status === "idle" || status === "error"
+            ? t("authFlow.continueWith", { provider: providerLabel[provider] })
+            : status === "authorizing"
+              ? t("authFlow.waiting")
+              : t("authFlow.verifying")}
         </Button>
 
         <p className="flex items-center gap-1.5 text-[11px] text-neutral-400">
           <ShieldCheck size={13} strokeWidth={1.5} />
-          Secured with OAuth2 and PKCE
+          {t("authFlow.secured")}
         </p>
       </form>
     </div>

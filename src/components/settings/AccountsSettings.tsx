@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { AccountConnectFlow } from "@/components/onboarding/AccountConnectFlow";
 import { useAccountStore } from "@/store/useAccountStore";
+import { useT } from "@/lib/useT";
 
 const PROVIDER_LABELS: Record<string, string> = {
   gmail: "Gmail",
@@ -14,6 +15,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 export function AccountsSettings() {
+  const t = useT();
   const accounts = useAccountStore((s) => s.accounts);
   const removeAccount = useAccountStore((s) => s.removeAccount);
   const [addingAccount, setAddingAccount] = useState(false);
@@ -53,22 +55,22 @@ export function AccountsSettings() {
             <button
               onClick={() => handleRemove(account.id)}
               disabled={removingId === account.id}
-              aria-label={`Remove ${account.email}`}
+              aria-label={t("accounts.remove", { email: account.email })}
               className="flex-shrink-0 text-neutral-400 hover:text-danger disabled:opacity-40"
             >
               <Trash2 size={14} strokeWidth={1.5} />
             </button>
           </div>
         ))}
-        {accounts.length === 0 && <p className="px-2.5 py-2 text-xs text-neutral-400">No accounts yet</p>}
+        {accounts.length === 0 && <p className="px-2.5 py-2 text-xs text-neutral-400">{t("accounts.noAccounts")}</p>}
       </div>
 
       <Button variant="secondary" size="sm" onClick={() => setAddingAccount(true)} className="w-fit">
         <Plus size={13} strokeWidth={1.5} />
-        Add account
+        {t("accounts.addAccount")}
       </Button>
 
-      <Modal open={addingAccount} onClose={() => setAddingAccount(false)} title="Add account">
+      <Modal open={addingAccount} onClose={() => setAddingAccount(false)} title={t("accounts.addAccountTitle")}>
         <AccountConnectFlow onComplete={() => setAddingAccount(false)} />
       </Modal>
     </div>

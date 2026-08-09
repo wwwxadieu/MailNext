@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
+import { useT } from "@/lib/useT";
 
 interface ModalProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, widthClassName = "max-w-md" }: ModalProps) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -37,7 +39,7 @@ export function Modal({ open, onClose, title, children, widthClassName = "max-w-
           <h2 className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
             {title}
           </h2>
-          <IconButton label="Close" onClick={onClose}>
+          <IconButton label={t("compose.close")} onClick={onClose}>
             <X size={16} strokeWidth={1.5} />
           </IconButton>
         </div>

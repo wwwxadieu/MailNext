@@ -11,6 +11,7 @@ import { UpdateBanner } from "@/components/update/UpdateBanner";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
+import { useLocaleStore } from "@/store/useLocaleStore";
 import { useUpdateStore } from "@/store/useUpdateStore";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
@@ -28,6 +29,7 @@ interface NewMailEvent {
 
 export default function App() {
   const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const hydrateLocale = useLocaleStore((s) => s.hydrate);
   const hydrateAccounts = useAccountStore((s) => s.hydrate);
   const hydrated = useAccountStore((s) => s.hydrated);
   const accounts = useAccountStore((s) => s.accounts);
@@ -40,7 +42,7 @@ export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
-    void Promise.all([hydrateTheme(), hydrateAccounts()]).then(() => setBootstrapped(true));
+    void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts()]).then(() => setBootstrapped(true));
   }, []);
 
   // Check for app updates shortly after launch, then periodically in the

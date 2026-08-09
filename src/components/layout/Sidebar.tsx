@@ -17,7 +17,12 @@ import { FolderModal } from "@/components/layout/FolderModal";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
+import { useT } from "@/lib/useT";
 import type { FolderRow, SpecialUse } from "@/types/mail";
+
+function folderLabel(t: ReturnType<typeof useT>, folder: FolderRow): string {
+  return folder.special_use ? t(`folder.${folder.special_use}`) : folder.name;
+}
 
 const folderIcons: Record<SpecialUse, LucideIcon> = {
   inbox: Inbox,
@@ -29,6 +34,7 @@ const folderIcons: Record<SpecialUse, LucideIcon> = {
 };
 
 export function Sidebar() {
+  const t = useT();
   const accounts = useAccountStore((s) => s.accounts);
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const setActiveAccount = useAccountStore((s) => s.setActiveAccount);
@@ -87,7 +93,7 @@ export function Sidebar() {
               style={{ backgroundColor: activeAccount?.color ?? "#0A84FF" }}
             />
             <span className="flex-1 truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
-              {activeAccount?.display_name ?? "No account"}
+              {activeAccount?.display_name ?? t("sidebar.noAccount")}
             </span>
           </div>
         )}
@@ -98,7 +104,7 @@ export function Sidebar() {
         className="mb-4 flex h-9 items-center justify-center gap-2 rounded-full bg-accent text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
       >
         <Pencil size={14} strokeWidth={1.5} />
-        Compose
+        {t("sidebar.compose")}
       </button>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto">
@@ -116,7 +122,7 @@ export function Sidebar() {
               )}
             >
               <Icon size={15} strokeWidth={1.5} className="flex-shrink-0" />
-              <span className="flex-1 truncate">{folder.name}</span>
+              <span className="flex-1 truncate">{folderLabel(t, folder)}</span>
               {folder.unread_count > 0 && (
                 <span className="rounded-full bg-black/10 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-600 dark:text-neutral-300">
                   {folder.unread_count}
@@ -131,7 +137,7 @@ export function Sidebar() {
           className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10"
         >
           <Plus size={15} strokeWidth={1.5} />
-          New folder
+          {t("sidebar.newFolder")}
         </button>
       </nav>
 
@@ -140,7 +146,7 @@ export function Sidebar() {
         className="mt-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10 dark:text-neutral-400"
       >
         <Settings size={15} strokeWidth={1.5} />
-        Settings
+        {t("sidebar.settings")}
       </button>
 
       <FolderModal />

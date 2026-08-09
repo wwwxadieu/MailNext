@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import * as repo from "@/lib/repository";
 import { useAccountStore } from "@/store/useAccountStore";
+import { useT } from "@/lib/useT";
 import type { LabelRow } from "@/types/mail";
 
 const PALETTE = ["#0A84FF", "#FF453A", "#FF9F0A", "#FFD60A", "#32D74B", "#64D2FF", "#BF5AF2", "#FF375F"];
 
 export function LabelManager() {
+  const t = useT();
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const [labels, setLabels] = useState<LabelRow[]>([]);
   const [name, setName] = useState("");
@@ -44,8 +46,8 @@ export function LabelManager() {
     <div className="flex flex-col gap-4">
       <div className="flex items-end gap-2">
         <TextField
-          label="New label"
-          placeholder="Important"
+          label={t("labels.newLabel")}
+          placeholder={t("labels.namePlaceholder")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="flex-1"
@@ -53,7 +55,7 @@ export function LabelManager() {
         />
         <Button variant="primary" onClick={handleCreate} disabled={!name.trim()}>
           <Plus size={14} strokeWidth={1.5} />
-          Add
+          {t("labels.add")}
         </Button>
       </div>
 
@@ -64,7 +66,7 @@ export function LabelManager() {
               {PALETTE.map((color) => (
                 <button
                   key={color}
-                  aria-label={`Set color ${color}`}
+                  aria-label={t("labels.setColor", { color })}
                   onClick={() => handleRecolor(label.id, color)}
                   className="h-4 w-4 rounded-full ring-offset-2 ring-offset-white dark:ring-offset-neutral-900"
                   style={{
@@ -77,14 +79,14 @@ export function LabelManager() {
             <span className="flex-1 truncate pl-2 text-sm text-neutral-700 dark:text-neutral-200">{label.name}</span>
             <button
               onClick={() => handleDelete(label.id)}
-              aria-label={`Delete ${label.name}`}
+              aria-label={t("labels.delete", { name: label.name })}
               className="text-neutral-400 hover:text-danger"
             >
               <Trash2 size={14} strokeWidth={1.5} />
             </button>
           </div>
         ))}
-        {labels.length === 0 && <p className="px-2 py-2 text-xs text-neutral-400">No labels yet</p>}
+        {labels.length === 0 && <p className="px-2 py-2 text-xs text-neutral-400">{t("labels.noLabels")}</p>}
       </div>
     </div>
   );

@@ -1,8 +1,10 @@
 import { DownloadCloud, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import { useUpdateStore } from "@/store/useUpdateStore";
 import { formatBytes, formatSpeed } from "@/lib/updater";
+import { useT } from "@/lib/useT";
 
 export function UpdateBanner() {
+  const t = useT();
   const status = useUpdateStore((s) => s.status);
   const info = useUpdateStore((s) => s.info);
   const progress = useUpdateStore((s) => s.progress);
@@ -28,13 +30,15 @@ export function UpdateBanner() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
-                MailNext {info.version} is available
+                {t("updateBanner.available", { version: info.version })}
               </p>
-              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">You're on {info.currentVersion}</p>
+              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                {t("updateBanner.onVersion", { version: info.currentVersion })}
+              </p>
             </div>
             <button
               onClick={dismiss}
-              aria-label="Dismiss"
+              aria-label={t("updateBanner.dismiss")}
               className="flex-shrink-0 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
             >
               <X size={14} strokeWidth={1.5} />
@@ -48,7 +52,7 @@ export function UpdateBanner() {
             className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-accent text-xs font-medium text-white hover:bg-accent-hover"
           >
             <DownloadCloud size={13} strokeWidth={1.5} />
-            Update now
+            {t("updateBanner.updateNow")}
           </button>
         )}
 
@@ -56,7 +60,7 @@ export function UpdateBanner() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <Loader2 size={14} className="animate-spin text-accent" strokeWidth={1.5} />
-              <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">Downloading update…</p>
+              <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("updateBanner.downloading")}</p>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
               <div
@@ -79,14 +83,14 @@ export function UpdateBanner() {
               <RefreshCw size={15} strokeWidth={1.5} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">Update ready</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">Restart MailNext to finish updating</p>
+              <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("updateBanner.ready")}</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("updateBanner.readyDescription")}</p>
             </div>
             <button
               onClick={restartNow}
               className="flex-shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
             >
-              Restart now
+              {t("updateBanner.restart")}
             </button>
           </div>
         )}
@@ -94,18 +98,18 @@ export function UpdateBanner() {
         {status === "error" && (
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-danger">Update failed</p>
+              <p className="text-sm font-medium text-danger">{t("updateBanner.failed")}</p>
               <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">{error}</p>
             </div>
             <button
               onClick={checkForUpdates}
               className="flex-shrink-0 rounded-full bg-black/5 dark:bg-white/10 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-black/10 dark:text-neutral-200 dark:hover:bg-white/15"
             >
-              Retry
+              {t("updateBanner.retry")}
             </button>
             <button
               onClick={dismiss}
-              aria-label="Dismiss"
+              aria-label={t("updateBanner.dismiss")}
               className="flex-shrink-0 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
             >
               <X size={14} strokeWidth={1.5} />

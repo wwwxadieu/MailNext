@@ -1,31 +1,32 @@
 import { useMemo, useRef, useState } from "react";
 import { ImageOff } from "lucide-react";
+import { useT } from "@/lib/useT";
+import { useThemeStore } from "@/store/useThemeStore";
 
 interface HtmlMessageFrameProps {
   html: string;
 }
 
-const FRAME_STYLE = `
+function frameStyle(isDark: boolean): string {
+  return `
   <style>
-    :root { color-scheme: light dark; }
+    :root { color-scheme: ${isDark ? "dark" : "light"}; }
     body {
       margin: 0;
       padding: 16px;
       font-family: -apple-system, "SF Pro Text", "Inter", sans-serif;
       font-size: 14px;
       line-height: 1.5;
-      color: #1c1c1e;
+      color: ${isDark ? "#f2f2f7" : "#1c1c1e"};
       word-wrap: break-word;
       overflow-wrap: break-word;
     }
     img { max-width: 100%; height: auto; }
     a { color: #0a84ff; }
     table { max-width: 100%; }
-    @media (prefers-color-scheme: dark) {
-      body { color: #f2f2f7; }
-    }
   </style>
 `;
+}
 
 /**
  * Renders untrusted HTML email bodies inside a sandboxed iframe (no
@@ -36,6 +37,8 @@ const FRAME_STYLE = `
  * silently leaking read receipts to tracking pixels.
  */
 export function HtmlMessageFrame({ html }: HtmlMessageFrameProps) {
+  const t = useT();
+  const isDark = useThemeStore((s) => s.resolved === "dark");
   const [imagesAllowed, setImagesAllowed] = useState(false);
   const [height, setHeight] = useState(120);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -46,8 +49,8 @@ export function HtmlMessageFrame({ html }: HtmlMessageFrameProps) {
     const processed = imagesAllowed
       ? html
       : html.replace(/(<img[^>]+)\bsrc\s*=\s*(["'])(https?:)/gi, '$1data-blocked-src=$2$3');
-    return `<!doctype html><html><head><meta charset="utf-8" />${FRAME_STYLE}</head><body>${processed}</body></html>`;
-  }, [html, imagesAllowed]);
+    return `<!doctype html><html><head><meta charset="utf-8" />${frameStyle(isDark)}</head><body>${processed}</body></html>`;
+  }, [html, imagesAllowed, isDark]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -57,12 +60,12 @@ export function HtmlMessageFrame({ html }: HtmlMessageFrameProps) {
           className="flex w-fit items-center gap-1.5 rounded-full bg-black/5 dark:bg-white/10 px-3 py-1 text-xs text-neutral-500 hover:bg-black/10 dark:text-neutral-400 dark:hover:bg-white/15"
         >
           <ImageOff size={13} strokeWidth={1.5} />
-          Images blocked — click to load
+          {t("emailView.imagesBlocked")}
         </button>
       )}
       <iframe
         ref={iframeRef}
-        title="Message body"
+        title={t("emailView.messageBodyTitle")}
         srcDoc={srcDoc}
         sandbox="allow-same-origin allow-popups"
         style={{ height }}

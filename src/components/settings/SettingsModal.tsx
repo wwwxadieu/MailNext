@@ -1,7 +1,8 @@
 import clsx from "clsx";
-import { AtSign, Bell, Filter, PenLine, RefreshCw, Sparkles, Tag } from "lucide-react";
+import { AtSign, Bell, Filter, PenLine, RefreshCw, Sparkles, SunMoon, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountsSettings } from "@/components/settings/AccountsSettings";
 import { AiSummarySettings } from "@/components/settings/AiSummarySettings";
 import { SignatureEditor } from "@/components/settings/SignatureEditor";
@@ -11,27 +12,30 @@ import { NotificationSettings } from "@/components/settings/NotificationSettings
 import { UpdateSettings } from "@/components/settings/UpdateSettings";
 import { useUiStore } from "@/store/useUiStore";
 import type { SettingsPanel } from "@/store/useUiStore";
+import { useT } from "@/lib/useT";
 
-const TABS: { id: Exclude<SettingsPanel, null>; label: string; icon: LucideIcon }[] = [
-  { id: "accounts", label: "Accounts", icon: AtSign },
-  { id: "signatures", label: "Signatures", icon: PenLine },
-  { id: "labels", label: "Labels", icon: Tag },
-  { id: "rules", label: "Rules", icon: Filter },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "ai", label: "AI Summary", icon: Sparkles },
-  { id: "updates", label: "Updates", icon: RefreshCw },
+const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIcon }[] = [
+  { id: "general", labelKey: "settings.tab.general", icon: SunMoon },
+  { id: "accounts", labelKey: "settings.tab.accounts", icon: AtSign },
+  { id: "signatures", labelKey: "settings.tab.signatures", icon: PenLine },
+  { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
+  { id: "rules", labelKey: "settings.tab.rules", icon: Filter },
+  { id: "notifications", labelKey: "settings.tab.notifications", icon: Bell },
+  { id: "ai", labelKey: "settings.tab.ai", icon: Sparkles },
+  { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw },
 ];
 
 export function SettingsModal() {
+  const t = useT();
   const panel = useUiStore((s) => s.settingsPanel);
   const closeSettings = useUiStore((s) => s.closeSettings);
   const openSettings = useUiStore((s) => s.openSettings);
 
   return (
-    <Modal open={panel !== null} onClose={closeSettings} title="Settings" widthClassName="max-w-2xl">
+    <Modal open={panel !== null} onClose={closeSettings} title={t("settings.title")} widthClassName="max-w-2xl">
       <div className="flex gap-5">
         <div className="w-36 flex-shrink-0 border-r border-black/5 dark:border-white/10 pr-3">
-          {TABS.map(({ id, label, icon: Icon }) => (
+          {TABS.map(({ id, labelKey, icon: Icon }) => (
             <button
               key={id}
               onClick={() => openSettings(id)}
@@ -43,11 +47,12 @@ export function SettingsModal() {
               )}
             >
               <Icon size={15} strokeWidth={1.5} />
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
         <div className="min-h-[280px] flex-1">
+          {panel === "general" && <GeneralSettings />}
           {panel === "accounts" && <AccountsSettings />}
           {panel === "signatures" && <SignatureEditor />}
           {panel === "labels" && <LabelManager />}

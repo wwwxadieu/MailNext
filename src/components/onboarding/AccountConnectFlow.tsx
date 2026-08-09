@@ -4,6 +4,7 @@ import { ServiceGrid } from "@/components/onboarding/ServiceGrid";
 import { ProviderAuthFlow } from "@/components/onboarding/ProviderAuthFlow";
 import { PasswordProviderFlow } from "@/components/onboarding/PasswordProviderFlow";
 import { useAccountStore } from "@/store/useAccountStore";
+import { useT } from "@/lib/useT";
 import type { ImapConnection, Provider, SmtpConnection } from "@/types/mail";
 
 const ACCENT_COLORS = ["#0A84FF", "#FF9F0A", "#32D74B", "#FF453A", "#BF5AF2", "#64D2FF"];
@@ -17,6 +18,7 @@ interface AccountConnectFlowProps {
 /** Provider picker → OAuth/password flow → account creation. Shared by the
  * first-run Onboarding screen and the "Add account" flow in Settings. */
 export function AccountConnectFlow({ header, onComplete }: AccountConnectFlowProps) {
+  const t = useT();
   const [selected, setSelected] = useState<Provider | null>(null);
   const addAccount = useAccountStore((s) => s.addAccount);
   const accountCount = useAccountStore((s) => s.accounts.length);
@@ -61,7 +63,7 @@ export function AccountConnectFlow({ header, onComplete }: AccountConnectFlowPro
             onClick={() => setSelected("custom")}
             className="text-center text-sm font-medium text-accent hover:text-accent-hover"
           >
-            Custom domain / enterprise email
+            {t("onboarding.customDomain")}
           </button>
         </>
       )}

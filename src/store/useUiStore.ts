@@ -1,6 +1,15 @@
 import { create } from "zustand";
 
-export type SettingsPanel = "accounts" | "signatures" | "labels" | "rules" | "notifications" | "updates" | "ai" | null;
+export type SettingsPanel =
+  | "general"
+  | "accounts"
+  | "signatures"
+  | "labels"
+  | "rules"
+  | "notifications"
+  | "updates"
+  | "ai"
+  | null;
 
 interface UiState {
   isComposing: boolean;

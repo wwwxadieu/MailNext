@@ -9,9 +9,11 @@ import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
 import { extractPlainText } from "@/lib/text";
 import { toImapConnection, toSmtpConnection } from "@/lib/connection";
+import { useT } from "@/lib/useT";
 import type { OutgoingMessage } from "@/types/mail";
 
 export function EmailView() {
+  const t = useT();
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const folders = useMailStore((s) => s.folders);
   const selectedFolderId = useMailStore((s) => s.selectedFolderId);
@@ -43,7 +45,7 @@ export function EmailView() {
     return (
       <section className="glass-panel flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-0 text-neutral-400">
         <Mail size={32} strokeWidth={1.2} />
-        <p className="text-sm">Select a message to read</p>
+        <p className="text-sm">{t("emailView.selectMessage")}</p>
       </section>
     );
   }
@@ -116,23 +118,23 @@ export function EmailView() {
             {message.subject}
           </h1>
           <div className="flex flex-shrink-0 items-center gap-1">
-            <ActionButton label="Summarize" onClick={handleSummarize} active={summary !== null}>
+            <ActionButton label={t("emailView.summarize")} onClick={handleSummarize} active={summary !== null}>
               {summarizing ? (
                 <Loader2 size={15} className="animate-spin" strokeWidth={1.5} />
               ) : (
                 <Sparkles size={15} strokeWidth={1.5} />
               )}
             </ActionButton>
-            <ActionButton label="Reply" onClick={() => setReplyOpen((v) => !v)}>
+            <ActionButton label={t("emailView.reply")} onClick={() => setReplyOpen((v) => !v)}>
               <Reply size={15} strokeWidth={1.5} />
             </ActionButton>
-            <ActionButton label="Flag" onClick={handleFlag} active={message.is_flagged === 1}>
+            <ActionButton label={t("emailView.flag")} onClick={handleFlag} active={message.is_flagged === 1}>
               <Flag size={15} strokeWidth={1.5} />
             </ActionButton>
-            <ActionButton label="Archive" onClick={handleArchive}>
+            <ActionButton label={t("emailView.archive")} onClick={handleArchive}>
               <Archive size={15} strokeWidth={1.5} />
             </ActionButton>
-            <ActionButton label="Delete" onClick={handleDelete}>
+            <ActionButton label={t("emailView.delete")} onClick={handleDelete}>
               <Trash2 size={15} strokeWidth={1.5} />
             </ActionButton>
           </div>
@@ -147,7 +149,7 @@ export function EmailView() {
               {message.from_name || message.from_address}
             </p>
             <p className="truncate text-xs text-neutral-400">
-              to {toAddresses.map((a) => a.name || a.address).join(", ") || "you"}
+              {t("emailView.to", { names: toAddresses.map((a) => a.name || a.address).join(", ") || t("emailView.you") })}
             </p>
           </div>
           <p className="flex-shrink-0 text-xs text-neutral-400">{safeFormat(message.date)}</p>
@@ -169,7 +171,7 @@ export function EmailView() {
                 setSummary(null);
                 setSummaryError(null);
               }}
-              aria-label="Dismiss summary"
+              aria-label={t("emailView.dismissSummary")}
               className="flex-shrink-0 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
             >
               <X size={13} strokeWidth={1.5} />
@@ -188,7 +190,7 @@ export function EmailView() {
         {message.has_attachments === 1 && (
           <div className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400">
             <Paperclip size={13} strokeWidth={1.5} />
-            This message has attachments
+            {t("emailView.hasAttachments")}
           </div>
         )}
       </div>
@@ -199,7 +201,7 @@ export function EmailView() {
             <textarea
               value={replyBody}
               onChange={(e) => setReplyBody(e.target.value)}
-              placeholder={`Reply to ${message.from_name || message.from_address}…`}
+              placeholder={t("emailView.replyPlaceholder", { name: message.from_name || message.from_address || "" })}
               rows={4}
               className="w-full resize-none bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
               autoFocus
@@ -210,7 +212,7 @@ export function EmailView() {
                 onClick={() => setReplyOpen(false)}
                 className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10"
               >
-                Cancel
+                {t("emailView.cancel")}
               </button>
               <button
                 onClick={handleSendReply}
@@ -218,7 +220,7 @@ export function EmailView() {
                 className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40"
               >
                 {sending ? <Loader2 size={13} className="animate-spin" strokeWidth={1.5} /> : <Send size={13} strokeWidth={1.5} />}
-                Send
+                {t("emailView.send")}
               </button>
             </div>
           </div>

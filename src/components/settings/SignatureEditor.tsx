@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import * as repo from "@/lib/repository";
 import { useAccountStore } from "@/store/useAccountStore";
+import { useT } from "@/lib/useT";
 import type { SignatureRow } from "@/types/mail";
 
 export function SignatureEditor() {
+  const t = useT();
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const [signatures, setSignatures] = useState<SignatureRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function SignatureEditor() {
       <div className="w-40 flex-shrink-0">
         <Button variant="ghost" size="sm" className="mb-2 w-full justify-start" onClick={handleCreate}>
           <Plus size={13} strokeWidth={1.5} />
-          New
+          {t("signatures.new")}
         </Button>
         <div className="flex flex-col gap-0.5">
           {signatures.map((s) => (
@@ -86,15 +88,15 @@ export function SignatureEditor() {
               {s.is_default === 1 && <Check size={12} strokeWidth={2} className="flex-shrink-0" />}
             </button>
           ))}
-          {signatures.length === 0 && <p className="px-2 py-2 text-xs text-neutral-400">No signatures yet</p>}
+          {signatures.length === 0 && <p className="px-2 py-2 text-xs text-neutral-400">{t("signatures.noSignatures")}</p>}
         </div>
       </div>
 
       {selected ? (
         <div className="flex flex-1 flex-col gap-3">
-          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField label={t("signatures.name")} value={name} onChange={(e) => setName(e.target.value)} />
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Content</label>
+            <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("signatures.content")}</label>
             <textarea
               value={contentText}
               onChange={(e) => setContentText(e.target.value)}
@@ -105,11 +107,11 @@ export function SignatureEditor() {
           <div className="flex items-center gap-2">
             <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
               {saving && <Loader2 size={13} className="animate-spin" strokeWidth={1.5} />}
-              Save
+              {t("signatures.save")}
             </Button>
             {selected.is_default !== 1 && (
               <Button variant="ghost" size="sm" onClick={() => handleSetDefault(selected.id)}>
-                Set as default
+                {t("signatures.setDefault")}
               </Button>
             )}
             <Button variant="ghost" size="sm" className="ml-auto text-danger" onClick={() => handleDelete(selected.id)}>
@@ -119,7 +121,7 @@ export function SignatureEditor() {
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-neutral-400">
-          Select or create a signature
+          {t("signatures.selectOrCreate")}
         </div>
       )}
     </div>

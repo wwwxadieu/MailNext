@@ -6,8 +6,10 @@ import { Switch } from "@/components/ui/Switch";
 import { getSetting, setSetting } from "@/lib/repository";
 import { CHIME_LABELS, playChime } from "@/lib/sound";
 import type { ChimeId } from "@/lib/sound";
+import { useT } from "@/lib/useT";
 
 export function NotificationSettings() {
+  const t = useT();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [chime, setChime] = useState<ChimeId>("chime-1");
@@ -53,10 +55,8 @@ export function NotificationSettings() {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">Toast notifications</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
-            Show a Windows notification when new mail arrives
-          </p>
+          <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("notifications.toast")}</p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("notifications.toastDescription")}</p>
         </div>
         <Switch checked={notificationsEnabled} onChange={handleToggleNotifications} />
       </div>
@@ -64,20 +64,20 @@ export function NotificationSettings() {
       {permissionGranted === false && (
         <div className="flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
           <ShieldAlert size={14} strokeWidth={1.5} />
-          Notifications are blocked in Windows settings.
+          {t("notifications.blocked")}
         </div>
       )}
 
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">Sound</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">Play a chime alongside notifications</p>
+          <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("notifications.sound")}</p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("notifications.soundDescription")}</p>
         </div>
         <Switch checked={soundEnabled} onChange={handleToggleSound} />
       </div>
 
       <div className={clsx("flex flex-col gap-1.5", !soundEnabled && "opacity-40 pointer-events-none")}>
-        <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Chime</p>
+        <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("notifications.chime")}</p>
         {(Object.keys(CHIME_LABELS) as ChimeId[]).map((id) => (
           <button
             key={id}

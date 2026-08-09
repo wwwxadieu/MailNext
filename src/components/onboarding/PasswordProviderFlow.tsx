@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import * as commands from "@/lib/commands";
+import { useT } from "@/lib/useT";
 import type { ImapConnection, MailServerConfig, Provider, SmtpConnection } from "@/types/mail";
 
 interface PasswordProviderFlowProps {
@@ -18,6 +19,7 @@ interface PasswordProviderFlowProps {
 }
 
 export function PasswordProviderFlow({ provider, onBack, onConnected }: PasswordProviderFlowProps) {
+  const t = useT();
   const isCustom = provider === "custom";
 
   const [displayName, setDisplayName] = useState("");
@@ -77,25 +79,23 @@ export function PasswordProviderFlow({ provider, onBack, onConnected }: Password
         className="flex w-fit items-center gap-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100"
       >
         <ArrowLeft size={14} strokeWidth={1.5} />
-        Back
+        {t("passwordFlow.back")}
       </button>
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-          {isCustom ? "Add a custom or enterprise account" : "Sign in with an app-specific password"}
+          {isCustom ? t("passwordFlow.customTitle") : t("passwordFlow.appPasswordTitle")}
         </h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          {isCustom
-            ? "Enter your mail provider's IMAP and SMTP server details."
-            : "iCloud Mail requires an app-specific password. Generate one at appleid.apple.com under Sign-In and Security."}
+          {isCustom ? t("passwordFlow.customSubtitle") : t("passwordFlow.icloudSubtitle")}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <TextField label="Your name" placeholder="Jordan Avery" value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoFocus />
-        <TextField label="Email address" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextField label={t("passwordFlow.yourName")} placeholder="Jordan Avery" value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoFocus />
+        <TextField label={t("passwordFlow.emailAddress")} type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         <TextField
-          label={isCustom ? "Password" : "App-specific password"}
+          label={isCustom ? t("passwordFlow.password") : t("passwordFlow.appPassword")}
           type="password"
           placeholder="••••••••••••••••"
           value={password}
@@ -104,10 +104,10 @@ export function PasswordProviderFlow({ provider, onBack, onConnected }: Password
 
         {isCustom && (
           <div className="grid grid-cols-2 gap-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] p-3">
-            <TextField label="IMAP host" placeholder="imap.example.com" value={imapHost} onChange={(e) => setImapHost(e.target.value)} />
-            <TextField label="IMAP port" inputMode="numeric" value={imapPort} onChange={(e) => setImapPort(e.target.value)} />
-            <TextField label="SMTP host" placeholder="smtp.example.com" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
-            <TextField label="SMTP port" inputMode="numeric" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
+            <TextField label={t("passwordFlow.imapHost")} placeholder="imap.example.com" value={imapHost} onChange={(e) => setImapHost(e.target.value)} />
+            <TextField label={t("passwordFlow.imapPort")} inputMode="numeric" value={imapPort} onChange={(e) => setImapPort(e.target.value)} />
+            <TextField label={t("passwordFlow.smtpHost")} placeholder="smtp.example.com" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
+            <TextField label={t("passwordFlow.smtpPort")} inputMode="numeric" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
           </div>
         )}
 
@@ -115,12 +115,12 @@ export function PasswordProviderFlow({ provider, onBack, onConnected }: Password
 
         <Button type="submit" variant="primary" size="lg" disabled={!canSubmit} className="mt-2">
           {status === "verifying" && <Loader2 size={16} className="animate-spin" strokeWidth={1.5} />}
-          {status === "verifying" ? "Verifying account…" : "Connect account"}
+          {status === "verifying" ? t("passwordFlow.verifying") : t("passwordFlow.connect")}
         </Button>
 
         <p className="flex items-center gap-1.5 text-[11px] text-neutral-400">
           <ShieldCheck size={13} strokeWidth={1.5} />
-          Credentials are stored locally and never leave your device
+          {t("onboarding.credentialsNote")}
         </p>
       </form>
     </div>

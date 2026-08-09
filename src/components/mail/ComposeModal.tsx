@@ -6,9 +6,11 @@ import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
 import { toSmtpConnection } from "@/lib/connection";
+import { useT } from "@/lib/useT";
 import type { OutgoingAttachment, OutgoingMessage } from "@/types/mail";
 
 export function ComposeModal() {
+  const t = useT();
   const isComposing = useUiStore((s) => s.isComposing);
   const closeCompose = useUiStore((s) => s.closeCompose);
   const activeAccount = useAccountStore((s) => s.activeAccount());
@@ -92,8 +94,8 @@ export function ComposeModal() {
     <div className="fixed bottom-6 right-6 z-50 w-[440px]">
       <div className="glass-panel-elevated flex flex-col rounded-2xl">
         <div className="flex items-center justify-between rounded-t-2xl border-b border-black/5 dark:border-white/10 px-4 py-2.5">
-          <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">New message</span>
-          <button onClick={closeCompose} aria-label="Close" className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200">
+          <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("compose.title")}</span>
+          <button onClick={closeCompose} aria-label={t("compose.close")} className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200">
             <X size={16} strokeWidth={1.5} />
           </button>
         </div>
@@ -102,19 +104,19 @@ export function ComposeModal() {
           <input
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            placeholder="To"
+            placeholder={t("compose.to")}
             className="h-9 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
           />
           <input
             value={cc}
             onChange={(e) => setCc(e.target.value)}
-            placeholder="Cc"
+            placeholder={t("compose.cc")}
             className="h-9 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
           />
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Subject"
+            placeholder={t("compose.subject")}
             className="h-9 bg-transparent text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
           />
         </div>
@@ -123,7 +125,7 @@ export function ComposeModal() {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={8}
-          placeholder="Write something…"
+          placeholder={t("compose.bodyPlaceholder")}
           className="resize-none bg-transparent px-4 py-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none dark:text-neutral-100"
         />
 
@@ -153,7 +155,7 @@ export function ComposeModal() {
             className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40"
           >
             {sending ? <Loader2 size={13} className="animate-spin" strokeWidth={1.5} /> : <Send size={13} strokeWidth={1.5} />}
-            Send
+            {t("compose.send")}
           </button>
         </div>
       </div>

@@ -1,12 +1,14 @@
 import { Mail } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { AccountConnectFlow } from "@/components/onboarding/AccountConnectFlow";
+import { useT } from "@/lib/useT";
 
 interface OnboardingProps {
   onComplete: () => void;
 }
 
 export function Onboarding({ onComplete }: OnboardingProps) {
+  const t = useT();
   return (
     <div className="flex h-full w-full items-center justify-center p-8">
       <GlassPanel elevated className="w-full max-w-md rounded-3xl p-8">
@@ -19,10 +21,10 @@ export function Onboarding({ onComplete }: OnboardingProps) {
               </div>
               <div>
                 <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-                  Welcome to MailNext
+                  {t("onboarding.welcome")}
                 </h1>
                 <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                  Add an email account to get started
+                  {t("onboarding.subtitle")}
                 </p>
               </div>
             </div>

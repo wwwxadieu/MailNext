@@ -9,8 +9,10 @@ import { toImapConnection } from "@/lib/connection";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
+import { useT } from "@/lib/useT";
 
 export function FolderModal() {
+  const t = useT();
   const isOpen = useUiStore((s) => s.isFolderModalOpen);
   const close = useUiStore((s) => s.closeFolderModal);
   const activeAccount = useAccountStore((s) => s.activeAccount());
@@ -57,19 +59,19 @@ export function FolderModal() {
   const customFolders = folders.filter((f) => !f.special_use);
 
   return (
-    <Modal open={isOpen} onClose={close} title="Manage folders">
+    <Modal open={isOpen} onClose={close} title={t("folderModal.title")}>
       <div className="flex flex-col gap-4">
         <div className="flex items-end gap-2">
           <TextField
-            label="New folder name"
-            placeholder="Travel"
+            label={t("folderModal.nameLabel")}
+            placeholder={t("folderModal.namePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="flex-1"
           />
           <Button variant="primary" disabled={busy || !name.trim()} onClick={handleCreate}>
             {busy && <Loader2 size={14} className="animate-spin" strokeWidth={1.5} />}
-            Create
+            {t("folderModal.create")}
           </Button>
         </div>
 
@@ -77,7 +79,7 @@ export function FolderModal() {
 
         {customFolders.length > 0 && (
           <div className="flex flex-col gap-1 border-t border-black/5 dark:border-white/10 pt-3">
-            <p className="mb-1 text-xs font-medium text-neutral-500 dark:text-neutral-400">Your folders</p>
+            <p className="mb-1 text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("folderModal.yourFolders")}</p>
             {customFolders.map((folder) => (
               <div
                 key={folder.id}
@@ -88,7 +90,7 @@ export function FolderModal() {
                   disabled={busy}
                   onClick={() => handleDelete(folder.id, folder.path)}
                   className="text-neutral-400 hover:text-danger disabled:opacity-40"
-                  aria-label={`Delete ${folder.name}`}
+                  aria-label={t("folderModal.delete", { name: folder.name })}
                 >
                   <Trash2 size={14} strokeWidth={1.5} />
                 </button>
