@@ -103,19 +103,19 @@ export async function updateAccountTokens(
 
 // Priority MailNext gives each special-use folder in the sidebar, mirroring
 // how Gmail/Outlook group folders: primary mailboxes (inbox/drafts/sent/
-// trash) together at the top, inbox category tabs next, then user-created
-// folders (see `folderPriority` below), with archive/junk pinned to the
-// bottom regardless of what order the server's IMAP LIST response happens
-// to return them in.
+// trash/archive — "All Mail") together at the top, inbox category tabs
+// next, then user-created folders (see `folderPriority` below), with junk
+// pinned to the bottom regardless of what order the server's IMAP LIST
+// response happens to return them in.
 const SPECIAL_USE_PRIORITY: Record<SpecialUse, number> = {
   inbox: 0,
   drafts: 1,
   sent: 2,
   trash: 3,
-  promotions: 4,
-  social: 5,
-  shopping: 6,
-  archive: 90,
+  archive: 4,
+  promotions: 5,
+  social: 6,
+  shopping: 7,
   junk: 91,
 };
 

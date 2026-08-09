@@ -72,7 +72,7 @@ export function ComposeModal() {
           transitionTimingFunction: EASE,
         }}
       >
-        <div className="glass-panel-elevated flex flex-1 flex-col overflow-hidden rounded-2xl">
+        <div className="glass-panel-elevated flex flex-1 flex-col overflow-hidden rounded-2xl border-black/10 bg-white/95 shadow-2xl">
           <div className="flex flex-shrink-0 items-center justify-between rounded-t-2xl border-b border-black/5 dark:border-white/10 px-4 py-2.5">
             <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("compose.title")}</span>
             <div className="flex items-center gap-2.5">
