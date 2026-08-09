@@ -82,6 +82,10 @@ textarea,
     @apply bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm rounded-2xl;
   }
 
+  .solid-panel {
+    @apply bg-white dark:bg-neutral-900 border border-black/5 dark:border-white/10 shadow-sm;
+  }
+
   .traffic-light {
     @apply flex h-3 w-3 items-center justify-center rounded-full transition-opacity;
   }

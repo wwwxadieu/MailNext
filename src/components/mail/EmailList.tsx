@@ -41,7 +41,7 @@ export function EmailList() {
   }
 
   return (
-    <section className="glass-panel flex w-[360px] flex-shrink-0 flex-col rounded-none border-y-0">
+    <section className="solid-panel flex w-[360px] flex-shrink-0 flex-col rounded-none border-y-0">
       <header className="flex flex-shrink-0 flex-col gap-2 border-b border-black/5 dark:border-white/10 p-3">
         <h1 className="px-1 text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
           {folder ? (folder.special_use ? t(`folder.${folder.special_use}`) : folder.name) : t("emailList.selectFolder")}

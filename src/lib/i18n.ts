@@ -78,6 +78,8 @@ const en: Dict = {
   "compose.insertTemplate": "Insert template",
   "compose.noTemplates": "No templates yet — add some in Settings",
   "compose.detach": "Open in a new window",
+  "compose.expand": "Expand",
+  "compose.collapse": "Collapse",
   "compose.send": "Send",
 
   "onboarding.welcome": "Welcome to MailNext",
@@ -315,6 +317,8 @@ const vi: Dict = {
   "compose.insertTemplate": "Chèn mẫu",
   "compose.noTemplates": "Chưa có mẫu nào — thêm trong phần Cài đặt",
   "compose.detach": "Mở ở cửa sổ riêng",
+  "compose.expand": "Mở rộng",
+  "compose.collapse": "Thu nhỏ",
   "compose.send": "Gửi",
 
   "onboarding.welcome": "Chào mừng đến với MailNext",

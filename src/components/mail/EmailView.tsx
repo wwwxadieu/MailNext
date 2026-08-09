@@ -60,7 +60,7 @@ export function EmailView() {
 
   if (!message) {
     return (
-      <section className="glass-panel relative flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-0 text-neutral-400">
+      <section className="solid-panel relative flex flex-1 flex-col items-center justify-center gap-2 rounded-none border-0 text-neutral-400">
         <div className="absolute right-3 top-3">
           <ActionButton
             label={t(isReadingPaneExpanded ? "emailView.collapse" : "emailView.expand")}
@@ -136,7 +136,7 @@ export function EmailView() {
   }
 
   return (
-    <section className="glass-panel flex flex-1 flex-col rounded-none border-0">
+    <section className="solid-panel flex flex-1 flex-col rounded-none border-0">
       <header className="flex flex-shrink-0 flex-col gap-3 border-b border-black/5 dark:border-white/10 p-5">
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
