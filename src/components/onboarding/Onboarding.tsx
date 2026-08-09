@@ -1,5 +1,4 @@
 import { Mail } from "lucide-react";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 import { AccountConnectFlow } from "@/components/onboarding/AccountConnectFlow";
 import { useT } from "@/lib/useT";
 
@@ -11,7 +10,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const t = useT();
   return (
     <div className="flex h-full w-full items-center justify-center p-8">
-      <GlassPanel elevated className="w-full max-w-md rounded-3xl p-8">
+      <div className="solid-panel w-full max-w-md rounded-3xl p-8 shadow-xl">
         <AccountConnectFlow
           onComplete={onComplete}
           header={
@@ -30,7 +29,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
             </div>
           }
         />
-      </GlassPanel>
+      </div>
     </div>
   );
 }

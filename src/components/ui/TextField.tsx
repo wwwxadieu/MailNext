@@ -20,7 +20,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
           ref={ref}
           id={inputId}
           className={clsx(
-            "h-9 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none transition-shadow focus:ring-2 focus:ring-accent/40 focus:border-accent/50",
+            "h-9 rounded-lg border border-black/10 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none transition-shadow focus:border-neutral-400/70 focus:ring-2 focus:ring-neutral-400/25 dark:focus:border-white/30 dark:focus:ring-white/15",
             className,
           )}
           {...props}

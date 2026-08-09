@@ -20,8 +20,22 @@ interface AccountConnectFlowProps {
 export function AccountConnectFlow({ header, onComplete }: AccountConnectFlowProps) {
   const t = useT();
   const [selected, setSelected] = useState<Provider | null>(null);
+  const [useAppPassword, setUseAppPassword] = useState(false);
   const addAccount = useAccountStore((s) => s.addAccount);
   const accountCount = useAccountStore((s) => s.accounts.length);
+
+  function selectProvider(provider: Provider) {
+    setUseAppPassword(false);
+    setSelected(provider);
+  }
+
+  function handlePasswordFlowBack() {
+    if (useAppPassword) {
+      setUseAppPassword(false);
+    } else {
+      setSelected(null);
+    }
+  }
 
   async function finish(input: {
     email: string;
@@ -50,17 +64,21 @@ export function AccountConnectFlow({ header, onComplete }: AccountConnectFlowPro
       color: ACCENT_COLORS[accountCount % ACCENT_COLORS.length]!,
     });
     setSelected(null);
+    setUseAppPassword(false);
     onComplete();
   }
+
+  const showOAuthFlow = selected && !useAppPassword && selected !== "icloud" && selected !== "custom";
+  const showPasswordFlow = selected && (useAppPassword || selected === "icloud" || selected === "custom");
 
   return (
     <div className="flex flex-col gap-6">
       {!selected && (
         <>
           {header}
-          <ServiceGrid onSelect={setSelected} />
+          <ServiceGrid onSelect={selectProvider} />
           <button
-            onClick={() => setSelected("custom")}
+            onClick={() => selectProvider("custom")}
             className="text-center text-sm font-medium text-accent hover:text-accent-hover"
           >
             {t("onboarding.customDomain")}
@@ -68,12 +86,17 @@ export function AccountConnectFlow({ header, onComplete }: AccountConnectFlowPro
         </>
       )}
 
-      {selected && selected !== "icloud" && selected !== "custom" && (
-        <ProviderAuthFlow provider={selected} onBack={() => setSelected(null)} onConnected={finish} />
+      {showOAuthFlow && (
+        <ProviderAuthFlow
+          provider={selected!}
+          onBack={() => setSelected(null)}
+          onUseAppPassword={() => setUseAppPassword(true)}
+          onConnected={finish}
+        />
       )}
 
-      {selected && (selected === "icloud" || selected === "custom") && (
-        <PasswordProviderFlow provider={selected} onBack={() => setSelected(null)} onConnected={finish} />
+      {showPasswordFlow && (
+        <PasswordProviderFlow provider={selected!} onBack={handlePasswordFlowBack} onConnected={finish} />
       )}
     </div>
   );
