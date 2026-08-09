@@ -157,16 +157,23 @@ textarea,
 }
 
 @layer components {
+  /* Soft glass, tuned to actually read as glass instead of "too
+   * transparent": CSS backdrop-filter can't blur the real desktop behind a
+   * Tauri window with transparent:true (only native Mica/Acrylic can), so
+   * the visual weight has to come from opacity + a border with real
+   * contrast — border-white/20 is invisible against a light background,
+   * hence border-black/10 here (see Sidebar/TitleBar/ComposeModal, where
+   * this was first fixed one-off before landing here for every consumer). */
   .glass-panel {
-    @apply bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm;
+    @apply bg-white/90 dark:bg-neutral-900/90 backdrop-blur-2xl backdrop-saturate-150 border border-black/10 dark:border-white/10 shadow-sm;
   }
 
   .glass-panel-elevated {
-    @apply bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg;
+    @apply bg-white/92 dark:bg-neutral-900/88 backdrop-blur-2xl backdrop-saturate-150 border border-black/10 dark:border-white/10 shadow-lg;
   }
 
   .glass-card {
-    @apply bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm rounded-2xl;
+    @apply bg-white/90 dark:bg-neutral-900/90 backdrop-blur-2xl backdrop-saturate-150 border border-black/10 dark:border-white/10 shadow-sm rounded-2xl;
   }
 
   .solid-panel {

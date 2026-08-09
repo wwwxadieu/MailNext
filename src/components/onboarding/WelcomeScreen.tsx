@@ -21,7 +21,7 @@ export function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden p-8">
       <div aria-hidden className="welcome-glow pointer-events-none absolute inset-0" />
 
-      <div className="glass-panel-elevated welcome-card-in relative z-10 w-full max-w-[420px] rounded-[28px] border-black/10 bg-white/95 p-9 text-center shadow-2xl dark:border-white/10 dark:bg-neutral-900/85">
+      <div className="glass-panel-elevated welcome-card-in relative z-10 w-full max-w-[420px] rounded-[28px] bg-white/95 p-9 text-center shadow-2xl dark:bg-neutral-900/85">
         <div className="welcome-mark-in mx-auto mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-[19px] bg-gradient-to-br from-accent-hover to-accent shadow-[0_14px_26px_-10px_rgba(10,132,255,0.55)]">
           <Mail size={30} strokeWidth={1.75} className="text-white" />
         </div>

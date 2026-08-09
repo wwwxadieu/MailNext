@@ -248,7 +248,7 @@ export function Sidebar() {
   return (
     <aside
       ref={asideRef}
-      className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 bg-white/90 backdrop-blur-2xl backdrop-saturate-150 p-3 dark:border-r-accent/40 dark:bg-neutral-900/90"
+      className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col rounded-none border-y-0 border-l-0 border-r-2 border-r-accent/30 p-3 dark:border-r-accent/40"
       style={{ filter: "drop-shadow(0 6px 18px rgba(15, 23, 42, 0.16))" }}
     >
       <div className="mb-3 flex flex-col gap-0.5">
