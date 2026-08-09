@@ -128,40 +128,49 @@ pub async fn imap_list_folders(app: AppHandle, connection: ImapConnection) -> Re
 /// normal Rust `String`, for display purposes only. The raw, still-encoded
 /// name must keep being used for any IMAP command (SELECT/EXAMINE/etc.) —
 /// this is applied solely to `FolderInfo.name`, never to `.path`.
+///
+/// Gmail doesn't always bother with modified UTF-7 for label names — a
+/// label a user renamed in a non-English locale (e.g. Vietnamese) often
+/// comes back as literal UTF-8 instead. Everything outside `&...-` escapes
+/// must therefore be copied through as UTF-8 string slices rather than
+/// walked byte-by-byte: reinterpreting each byte of a multi-byte UTF-8
+/// sequence as its own Unicode scalar (the previous `byte as char`
+/// approach) corrupts exactly that already-correct text.
 fn decode_imap_utf7(input: &str) -> String {
-    let bytes = input.as_bytes();
     let mut result = String::with_capacity(input.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'&' {
-            let start = i + 1;
-            let mut j = start;
-            while j < bytes.len() && bytes[j] != b'-' {
-                j += 1;
-            }
-            let chunk = &input[start..j];
-            if chunk.is_empty() {
-                result.push('&');
-            } else {
-                match decode_modified_base64(chunk) {
-                    Some(decoded) => result.push_str(&decoded),
-                    None => {
-                        // Not valid modified UTF-7 — keep the original bytes
-                        // rather than risk garbling something else entirely.
-                        result.push('&');
-                        result.push_str(chunk);
-                        if j < bytes.len() {
+    let mut rest = input;
+    while let Some(amp_pos) = rest.find('&') {
+        result.push_str(&rest[..amp_pos]);
+        rest = &rest[amp_pos + 1..];
+        match rest.find('-') {
+            Some(dash_pos) => {
+                let chunk = &rest[..dash_pos];
+                if chunk.is_empty() {
+                    result.push('&');
+                } else {
+                    match decode_modified_base64(chunk) {
+                        Some(decoded) => result.push_str(&decoded),
+                        None => {
+                            // Not valid modified UTF-7 — keep the original
+                            // text rather than risk garbling it further.
+                            result.push('&');
+                            result.push_str(chunk);
                             result.push('-');
                         }
                     }
                 }
+                rest = &rest[dash_pos + 1..];
             }
-            i = if j < bytes.len() { j + 1 } else { j };
-        } else {
-            result.push(bytes[i] as char);
-            i += 1;
+            None => {
+                // No terminating '-': not actually modified UTF-7 — keep
+                // the '&' and everything after it verbatim.
+                result.push('&');
+                result.push_str(rest);
+                rest = "";
+            }
         }
     }
+    result.push_str(rest);
     result
 }
 
@@ -479,4 +488,33 @@ pub(crate) async fn unseen_count(connection: &ImapConnection, folder: &str) -> R
         .map_err(|e| format!("Could not search folder: {e}"))?;
     session.logout().await.map_err(|e| e.to_string())?;
     Ok(unseen)
+}
+
+#[cfg(test)]
+mod decode_imap_utf7_tests {
+    use super::decode_imap_utf7;
+
+    #[test]
+    fn decodes_modified_utf7_escapes() {
+        // "Bản nháp" ("Draft" in Vietnamese), modified UTF-7 encoded.
+        assert_eq!(decode_imap_utf7("B&HqM-n nh&AOE-p"), "Bản nháp");
+    }
+
+    #[test]
+    fn passes_through_literal_utf8_unchanged() {
+        // Gmail sends some label names as literal UTF-8 rather than
+        // modified UTF-7 — this used to get corrupted by the old
+        // byte-by-byte `byte as char` decoder.
+        assert_eq!(decode_imap_utf7("Đã gửi"), "Đã gửi");
+    }
+
+    #[test]
+    fn decodes_ampersand_escape() {
+        assert_eq!(decode_imap_utf7("Bed &- Breakfast"), "Bed & Breakfast");
+    }
+
+    #[test]
+    fn leaves_plain_ascii_unchanged() {
+        assert_eq!(decode_imap_utf7("Promotions"), "Promotions");
+    }
 }
