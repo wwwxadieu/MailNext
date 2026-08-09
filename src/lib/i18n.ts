@@ -167,7 +167,6 @@ const en: Dict = {
   "settings.tab.labels": "Labels",
   "settings.tab.rules": "Rules",
   "settings.tab.notifications": "Notifications",
-  "settings.tab.ai": "AI Summary",
   "settings.tab.updates": "Updates",
 
   "general.language": "Language",
@@ -183,11 +182,6 @@ const en: Dict = {
   "accounts.addAccountTitle": "Add account",
   "accounts.remove": "Remove {email}",
 
-  "aiSummary.title": "AI email summaries",
-  "aiSummary.description": "Adds a \"Summarize\" action to every message, powered by Claude (Anthropic). No setup needed on your end — a message's subject and body are sent to Anthropic only when you click Summarize.",
-  "aiSummary.ready": "Ready — the Summarize button will work on any open message.",
-  "aiSummary.notConfigured": "Not configured for this build.",
-  "aiSummary.notConfiguredHint": "Whoever built MailNext needs to set the MAILNEXT_ANTHROPIC_API_KEY environment variable and rebuild — see the README's \"AI email summaries\" section.",
 
   "labels.newLabel": "New label",
   "labels.namePlaceholder": "Important",
@@ -452,7 +446,6 @@ const vi: Dict = {
   "settings.tab.labels": "Nhãn",
   "settings.tab.rules": "Quy tắc",
   "settings.tab.notifications": "Thông báo",
-  "settings.tab.ai": "Tóm tắt AI",
   "settings.tab.updates": "Cập nhật",
 
   "general.language": "Ngôn ngữ",
@@ -468,11 +461,6 @@ const vi: Dict = {
   "accounts.addAccountTitle": "Thêm tài khoản",
   "accounts.remove": "Xoá {email}",
 
-  "aiSummary.title": "Tóm tắt email bằng AI",
-  "aiSummary.description": "Thêm nút \"Tóm tắt\" trên mỗi email, sử dụng Claude (Anthropic). Không cần thiết lập gì — chủ đề và nội dung email chỉ được gửi đến Anthropic khi bạn nhấn Tóm tắt.",
-  "aiSummary.ready": "Sẵn sàng — nút Tóm tắt sẽ hoạt động trên mọi email đang mở.",
-  "aiSummary.notConfigured": "Chưa được cấu hình cho bản dựng này.",
-  "aiSummary.notConfiguredHint": "Người build MailNext cần thiết lập biến môi trường MAILNEXT_ANTHROPIC_API_KEY rồi build lại — xem mục \"AI email summaries\" trong README.",
 
   "labels.newLabel": "Nhãn mới",
   "labels.namePlaceholder": "Quan trọng",

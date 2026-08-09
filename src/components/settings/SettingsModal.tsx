@@ -1,10 +1,9 @@
 import clsx from "clsx";
-import { AtSign, Bell, FileText, Filter, PenLine, RefreshCw, Sparkles, SunMoon, Tag } from "lucide-react";
+import { AtSign, Bell, FileText, Filter, PenLine, RefreshCw, SunMoon, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountsSettings } from "@/components/settings/AccountsSettings";
-import { AiSummarySettings } from "@/components/settings/AiSummarySettings";
 import { SignatureEditor } from "@/components/settings/SignatureEditor";
 import { TemplateManager } from "@/components/settings/TemplateManager";
 import { LabelManager } from "@/components/settings/LabelManager";
@@ -23,7 +22,6 @@ const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIc
   { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
   { id: "rules", labelKey: "settings.tab.rules", icon: Filter },
   { id: "notifications", labelKey: "settings.tab.notifications", icon: Bell },
-  { id: "ai", labelKey: "settings.tab.ai", icon: Sparkles },
   { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw },
 ];
 
@@ -61,7 +59,6 @@ export function SettingsModal() {
           {panel === "labels" && <LabelManager />}
           {panel === "rules" && <RulesSettings />}
           {panel === "notifications" && <NotificationSettings />}
-          {panel === "ai" && <AiSummarySettings />}
           {panel === "updates" && <UpdateSettings />}
         </div>
       </div>

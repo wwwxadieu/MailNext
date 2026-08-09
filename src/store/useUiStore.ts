@@ -9,7 +9,6 @@ export type SettingsPanel =
   | "rules"
   | "notifications"
   | "updates"
-  | "ai"
   | null;
 
 interface UiState {

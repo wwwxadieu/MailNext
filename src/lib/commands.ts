@@ -106,7 +106,3 @@ export function stopMailWatcher(accountEmail: string, folder: string): Promise<v
 export function summarizeEmail(subject: string, body: string): Promise<string> {
   return invoke("summarize_email", { subject, body });
 }
-
-export function aiSummaryAvailable(): Promise<boolean> {
-  return invoke("ai_summary_available");
-}
