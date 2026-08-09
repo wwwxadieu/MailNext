@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
-import { Archive, Flag, Loader2, Mail, Paperclip, Reply, Send, Trash2 } from "lucide-react";
+import { Archive, Flag, Loader2, Mail, Paperclip, Reply, Send, Sparkles, Trash2, X } from "lucide-react";
 import { HtmlMessageFrame } from "@/components/mail/HtmlMessageFrame";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
+import { extractPlainText } from "@/lib/text";
 import { toImapConnection, toSmtpConnection } from "@/lib/connection";
 import type { OutgoingMessage } from "@/types/mail";
 
@@ -26,7 +27,17 @@ export function EmailView() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
   const toAddresses = useMemo(() => (message ? repo.parseAddresses(message.to_json) : []), [message]);
+
+  useEffect(() => {
+    setSummary(null);
+    setSummaryError(null);
+    setSummarizing(false);
+  }, [message?.id]);
 
   if (!message) {
     return (
@@ -64,6 +75,26 @@ export function EmailView() {
     }
   }
 
+  async function handleSummarize() {
+    if (!message) return;
+    setSummarizing(true);
+    setSummaryError(null);
+    try {
+      const apiKey = await repo.getSetting("anthropic_api_key");
+      if (!apiKey) {
+        setSummaryError("Add an Anthropic API key in Settings > AI Summary first.");
+        return;
+      }
+      const plainText = extractPlainText(message.body_text, message.body_html);
+      const result = await commands.summarizeEmail(apiKey, message.subject, plainText);
+      setSummary(result);
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSummarizing(false);
+    }
+  }
+
   async function handleFlag() {
     if (activeAccount && folder && message) await toggleFlag(activeAccount, folder, message);
   }
@@ -90,6 +121,13 @@ export function EmailView() {
             {message.subject}
           </h1>
           <div className="flex flex-shrink-0 items-center gap-1">
+            <ActionButton label="Summarize" onClick={handleSummarize} active={summary !== null}>
+              {summarizing ? (
+                <Loader2 size={15} className="animate-spin" strokeWidth={1.5} />
+              ) : (
+                <Sparkles size={15} strokeWidth={1.5} />
+              )}
+            </ActionButton>
             <ActionButton label="Reply" onClick={() => setReplyOpen((v) => !v)}>
               <Reply size={15} strokeWidth={1.5} />
             </ActionButton>
@@ -122,6 +160,28 @@ export function EmailView() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-5">
+        {(summary || summaryError) && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent/5 p-3">
+            <Sparkles size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-accent" />
+            <div className="min-w-0 flex-1">
+              {summary && (
+                <p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-200">{summary}</p>
+              )}
+              {summaryError && <p className="text-xs text-danger">{summaryError}</p>}
+            </div>
+            <button
+              onClick={() => {
+                setSummary(null);
+                setSummaryError(null);
+              }}
+              aria-label="Dismiss summary"
+              className="flex-shrink-0 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+            >
+              <X size={13} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
+
         {message.body_html ? (
           <HtmlMessageFrame html={message.body_html} />
         ) : (

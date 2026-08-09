@@ -39,6 +39,7 @@ pub fn run() {
             commands::notifications::notify_new_mail,
             commands::watcher::start_mail_watcher,
             commands::watcher::stop_mail_watcher,
+            commands::summarize::summarize_email,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the MailNext application");

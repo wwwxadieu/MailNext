@@ -94,3 +94,7 @@ export function startMailWatcher(
 export function stopMailWatcher(accountEmail: string, folder: string): Promise<void> {
   return invoke("stop_mail_watcher", { accountEmail, folder });
 }
+
+export function summarizeEmail(apiKey: string, subject: string, body: string): Promise<string> {
+  return invoke("summarize_email", { apiKey, subject, body });
+}

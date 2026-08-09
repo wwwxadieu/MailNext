@@ -13,6 +13,7 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 - **Native Windows 11 toast notifications** plus synthesized audio chimes (Web Audio API — no bundled sound assets) for new mail, driven by a background IMAP poller.
 - **Local-first cache**: accounts, folders, messages, labels and signatures are cached in SQLite via `@tauri-apps/plugin-sql`.
 - **In-place auto-updates**: MailNext checks for new versions in the background, downloads the update inside the running app (no browser, no installer wizard), installs it silently, and only needs a one-click restart to finish — with a live progress bar showing bytes downloaded and download speed.
+- **AI email summaries**: a one-click "Summarize" action on any open message, powered by Claude (Anthropic). Uses your own Anthropic API key (Settings → AI Summary) — a message's subject and body are only sent to Anthropic when you click Summarize.
 
 ## Tech stack
 
@@ -25,6 +26,7 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 | Mail protocols | `async-imap`, `lettre` (SMTP), `oauth2` (OAuth2 + PKCE)                 |
 | Notifications  | `@tauri-apps/plugin-notification` (native toasts) + Web Audio chimes   |
 | Updates        | `@tauri-apps/plugin-updater` + `@tauri-apps/plugin-process` (silent NSIS install + relaunch) |
+| AI summaries   | Claude Haiku 4.5 via the Anthropic Messages API (`reqwest` from Rust)  |
 | Icons          | [Lucide React](https://lucide.dev) only — no emoji anywhere in the UI  |
 
 ## Getting started
@@ -54,6 +56,10 @@ Gmail, Outlook and Yahoo require MailNext to be registered as an OAuth2 "install
 Configure each app's redirect URI as a loopback address (`http://127.0.0.1/callback` with a wildcard/any port, or add each port your provider requires) — MailNext binds an ephemeral local port and opens your system browser to complete sign-in.
 
 iCloud Mail and custom/enterprise servers don't need any of the above: sign in with your regular password or an [app-specific password](https://appleid.apple.com) directly in the onboarding flow.
+
+### AI email summaries (optional)
+
+Unlike the OAuth2 clients above, the AI summary feature needs no build-time configuration — each user pastes their own [Anthropic API key](https://console.anthropic.com) into **Settings → AI Summary** at runtime. The key is stored locally in SQLite and sent only to `api.anthropic.com`, only when that user clicks **Summarize**. Leaving the key unset simply leaves the feature unused; no other part of the app depends on it.
 
 ### Run in development
 
