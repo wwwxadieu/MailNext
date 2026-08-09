@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SettingsPanel = "signatures" | "labels" | "notifications" | "updates" | null;
+export type SettingsPanel = "accounts" | "signatures" | "labels" | "notifications" | "updates" | null;
 
 interface UiState {
   isComposing: boolean;
@@ -24,7 +24,7 @@ export const useUiStore = create<UiState>((set) => ({
 
   openCompose: (inReplyTo) => set({ isComposing: true, composeInReplyTo: inReplyTo ?? null }),
   closeCompose: () => set({ isComposing: false, composeInReplyTo: null }),
-  openSettings: (panel) => set({ settingsPanel: panel ?? "signatures" }),
+  openSettings: (panel) => set({ settingsPanel: panel ?? "accounts" }),
   closeSettings: () => set({ settingsPanel: null }),
   openFolderModal: () => set({ isFolderModalOpen: true }),
   closeFolderModal: () => set({ isFolderModalOpen: false }),
