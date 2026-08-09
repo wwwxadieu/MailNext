@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  ArrowUpDown,
   Check,
   CheckCircle2,
   ListFilter,
@@ -44,9 +45,13 @@ export function EmailList() {
   const folderSyncProgress = useMailStore((s) => s.folderSyncProgress);
   const openSettings = useUiStore((s) => s.openSettings);
 
+  type SortOption = "newest" | "oldest" | "unread_first" | "read_first";
+
   const [query, setQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: MessageRow } | null>(null);
@@ -84,21 +89,34 @@ export function EmailList() {
   }
 
   const filtered = useMemo(() => {
-    let result = messages;
+    let result = [...messages];
     if (quickFilter === "unread") result = result.filter((m) => m.is_read === 0);
     else if (quickFilter === "flagged") result = result.filter((m) => m.is_flagged === 1);
     else if (quickFilter === "attachments") result = result.filter((m) => m.has_attachments === 1);
 
     const q = query.trim().toLowerCase();
-    if (!q) return result;
-    return result.filter(
-      (m) =>
-        m.subject.toLowerCase().includes(q) ||
-        (m.from_name ?? "").toLowerCase().includes(q) ||
-        (m.from_address ?? "").toLowerCase().includes(q) ||
-        m.snippet.toLowerCase().includes(q),
-    );
-  }, [messages, query, quickFilter]);
+    if (q) {
+      result = result.filter(
+        (m) =>
+          m.subject.toLowerCase().includes(q) ||
+          (m.from_name ?? "").toLowerCase().includes(q) ||
+          (m.from_address ?? "").toLowerCase().includes(q) ||
+          m.snippet.toLowerCase().includes(q),
+      );
+    }
+
+    if (sortOption === "newest") {
+      result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortOption === "oldest") {
+      result.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } else if (sortOption === "unread_first") {
+      result.sort((a, b) => a.is_read - b.is_read || new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortOption === "read_first") {
+      result.sort((a, b) => b.is_read - a.is_read || new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
+    return result;
+  }, [messages, query, quickFilter, sortOption]);
 
   const isAllSelected = filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id));
 
@@ -328,30 +346,95 @@ export function EmailList() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
-            {(
-              [
-                ["all", t("emailList.filterAll")],
-                ["unread", t("emailList.filterUnread")],
-                ["flagged", t("emailList.filterFlagged")],
-                ["attachments", t("emailList.filterAttachments")],
-              ] as [QuickFilter, string][]
-            ).map(([value, label]) => (
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
+              {(
+                [
+                  ["all", t("emailList.filterAll")],
+                  ["unread", t("emailList.filterUnread")],
+                  ["flagged", t("emailList.filterFlagged")],
+                  ["attachments", t("emailList.filterAttachments")],
+                ] as [QuickFilter, string][]
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setQuickFilter(value)}
+                  className={clsx(
+                    "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors flex-shrink-0",
+                    quickFilter === value
+                      ? "bg-accent text-white shadow-sm"
+                      : "bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
+                  )}
+                >
+                  {value === "flagged" && <Star size={10} strokeWidth={2} />}
+                  {value === "attachments" && <Paperclip size={10} strokeWidth={2} />}
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort Popover Button */}
+            <div className="relative flex-shrink-0">
               <button
-                key={value}
-                onClick={() => setQuickFilter(value)}
+                type="button"
+                onClick={() => setSortMenuOpen((v) => !v)}
                 className={clsx(
-                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  quickFilter === value
-                    ? "bg-accent text-white shadow-sm"
-                    : "bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
+                  "flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors border",
+                  sortOption !== "newest"
+                    ? "border-accent/40 bg-accent/10 text-accent font-semibold"
+                    : "border-black/5 dark:border-white/10 bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
                 )}
+                title="Sắp xếp danh sách thư"
               >
-                {value === "flagged" && <Star size={10} strokeWidth={2} />}
-                {value === "attachments" && <Paperclip size={10} strokeWidth={2} />}
-                {label}
+                <ArrowUpDown size={11} strokeWidth={2} />
+                <span>
+                  {sortOption === "newest"
+                    ? "Mới nhất"
+                    : sortOption === "oldest"
+                      ? "Cũ nhất"
+                      : sortOption === "unread_first"
+                        ? "Chưa đọc"
+                        : "Đã đọc"}
+                </span>
               </button>
-            ))}
+
+              {sortMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSortMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                      Sắp xếp thư theo
+                    </p>
+                    <div className="space-y-0.5">
+                      {[
+                        { id: "newest", label: "Mới nhất trước" },
+                        { id: "oldest", label: "Cũ nhất trước" },
+                        { id: "unread_first", label: "🔵 Chưa đọc lên đầu" },
+                        { id: "read_first", label: "⚪ Đã đọc lên đầu" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setSortOption(opt.id as SortOption);
+                            setSortMenuOpen(false);
+                          }}
+                          className={clsx(
+                            "flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
+                            sortOption === opt.id
+                              ? "bg-accent/10 text-accent font-medium"
+                              : "text-neutral-700 dark:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/10",
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          {sortOption === opt.id && <Check size={12} className="text-accent" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </header>

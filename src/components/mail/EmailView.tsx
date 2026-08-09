@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import clsx from "clsx";
 import { format } from "date-fns";
 import {
   Archive,
   BellOff,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   Flag,
   Forward,
+  Info,
   Loader2,
   Mail,
   Maximize2,
@@ -324,7 +324,7 @@ export function EmailView() {
               </button>
 
               <div className="min-w-0 flex-1 flex flex-col justify-center">
-                {/* Sender Name & Sender Email Address */}
+                {/* Sender Name, Email & Details Icon Button */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <button
                     type="button"
@@ -344,23 +344,28 @@ export function EmailView() {
                       &lt;{message.from_address}&gt;
                     </button>
                   )}
+
+                  {/* Icon Button for Details Expander */}
+                  <button
+                    type="button"
+                    onClick={() => setShowDetails((v) => !v)}
+                    className={clsx(
+                      "inline-flex items-center justify-center h-5 w-5 rounded-full text-neutral-400 hover:bg-black/5 dark:hover:bg-white/10 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors flex-shrink-0 ml-0.5",
+                      showDetails && "bg-accent/15 text-accent hover:bg-accent/20 hover:text-accent",
+                    )}
+                    title={showDetails ? "Ẩn chi tiết thư" : "Xem chi tiết thư"}
+                  >
+                    <Info size={13} strokeWidth={2} />
+                  </button>
                 </div>
 
-                {/* Recipient & Details Expander Toggle */}
+                {/* Recipient Line */}
                 <div className="flex items-center gap-1.5 text-xs text-neutral-400 mt-0.5">
                   <span className="truncate">
                     {t("emailView.to", {
                       names: toAddresses.map((a) => (a.name ? `${a.name} (${a.address})` : a.address)).join(", ") || t("emailView.you"),
                     })}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowDetails((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-neutral-500 hover:bg-black/10 dark:hover:bg-white/15 dark:text-neutral-300 transition-colors flex-shrink-0 ml-1"
-                  >
-                    <span>{showDetails ? (t("emailView.hideDetails") ?? "Ẩn chi tiết") : (t("emailView.showDetails") ?? "Chi tiết")}</span>
-                    {showDetails ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                  </button>
                 </div>
               </div>
             </div>
@@ -449,10 +454,10 @@ export function EmailView() {
         )}
 
         {message.body_html ? (
-          <HtmlMessageFrame html={message.body_html} overrideTheme={readingTheme} />
+          <HtmlMessageFrame html={message.body_html} overrideTheme={readingTheme} onToggleTheme={toggleReadingTheme} />
         ) : (
           <div
-            className="rounded-xl p-4 transition-colors duration-200"
+            className="rounded-xl p-4 transition-colors duration-200 border border-black/5 dark:border-white/5 relative group"
             style={
               readingTheme === "light"
                 ? { backgroundColor: "#ffffff", color: "#1c1c1e" }
@@ -461,6 +466,26 @@ export function EmailView() {
                   : undefined
             }
           >
+            <div className="flex justify-end mb-2">
+              <button
+                type="button"
+                onClick={toggleReadingTheme}
+                className="flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/10 px-2.5 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+                title="Chuyển đổi nền sáng / tối"
+              >
+                {readingTheme === "dark" ? (
+                  <>
+                    <Sun size={13} className="text-amber-500" />
+                    <span>Nền sáng</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon size={13} className="text-indigo-400" />
+                    <span>Nền tối</span>
+                  </>
+                )}
+              </button>
+            </div>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-200">
               {message.body_text}
             </p>
