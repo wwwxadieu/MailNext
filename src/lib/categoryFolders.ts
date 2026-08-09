@@ -1,16 +1,33 @@
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
-import type { Account, FolderRow, ImapConnection, RuleCondition, SpecialUse } from "@/types/mail";
+import { toImapConnection } from "@/lib/connection";
+import type { Account, EmailMessage, FolderRow, ImapConnection, SpecialUse } from "@/types/mail";
+
+function fromText(message: EmailMessage): string {
+  return `${message.from?.name ?? ""} ${message.from?.address ?? ""}`.toLowerCase();
+}
+
+function subjectText(message: EmailMessage): string {
+  return message.subject.toLowerCase();
+}
+
+function containsAny(haystack: string, needles: string[]): boolean {
+  return needles.some((needle) => haystack.includes(needle));
+}
 
 interface CategoryDef {
   specialUse: SpecialUse;
   path: string;
-  /** Rule name + conditions that make a heuristic call about what belongs
-   * in this category. Omitted for "junk" — real providers already flag
-   * spam server-side (see `classify_special_use` in the Rust IMAP layer),
-   * and a client-side keyword guess for spam is more likely to bury
-   * legitimate mail than catch anything a provider's own filter missed. */
-  rule?: { name: string; conditions: RuleCondition[] };
+  /** Heuristic sniff test for whether a message belongs in this category —
+   * the same kind of sender/subject signal Gmail's own inbox tabs use.
+   * This is intentionally *not* the user-facing Rules feature: it's a
+   * built-in classifier baked into the sync pipeline, so it never shows up
+   * as an editable/deletable Rule the way a user's own filters do.
+   * Omitted for "junk" — real providers already flag spam server-side (see
+   * `classify_special_use` in the Rust IMAP layer), and a client-side
+   * keyword guess for spam is more likely to bury legitimate mail than
+   * catch anything a provider's own filter missed. */
+  matches?: (message: EmailMessage) => boolean;
 }
 
 const CATEGORIES: CategoryDef[] = [
@@ -18,51 +35,31 @@ const CATEGORIES: CategoryDef[] = [
   {
     specialUse: "social",
     path: "Social",
-    rule: {
-      name: "Social",
-      conditions: [
-        { field: "from", operator: "contains", value: "facebookmail.com" },
-        { field: "from", operator: "contains", value: "facebook.com" },
-        { field: "from", operator: "contains", value: "instagram.com" },
-        { field: "from", operator: "contains", value: "twitter.com" },
-        { field: "from", operator: "contains", value: "x.com" },
-        { field: "from", operator: "contains", value: "linkedin.com" },
-        { field: "from", operator: "contains", value: "tiktok.com" },
-        { field: "from", operator: "contains", value: "pinterest.com" },
-      ],
-    },
+    matches: (m) =>
+      containsAny(fromText(m), [
+        "facebookmail.com",
+        "facebook.com",
+        "instagram.com",
+        "twitter.com",
+        "x.com",
+        "linkedin.com",
+        "tiktok.com",
+        "pinterest.com",
+      ]),
   },
   {
     specialUse: "promotions",
     path: "Promotions",
-    rule: {
-      name: "Promotions",
-      conditions: [
-        { field: "subject", operator: "contains", value: "% off" },
-        { field: "subject", operator: "contains", value: "sale" },
-        { field: "subject", operator: "contains", value: "discount" },
-        { field: "from", operator: "contains", value: "mailchimp" },
-        { field: "from", operator: "contains", value: "hubspot" },
-        { field: "from", operator: "contains", value: "klaviyo" },
-      ],
-    },
+    matches: (m) =>
+      containsAny(subjectText(m), ["% off", "sale", "discount"]) ||
+      containsAny(fromText(m), ["mailchimp", "hubspot", "klaviyo"]),
   },
   {
     specialUse: "shopping",
     path: "Shopping",
-    rule: {
-      name: "Shopping",
-      conditions: [
-        { field: "from", operator: "contains", value: "amazon.com" },
-        { field: "from", operator: "contains", value: "shopee" },
-        { field: "from", operator: "contains", value: "lazada" },
-        { field: "from", operator: "contains", value: "tiki.vn" },
-        { field: "from", operator: "contains", value: "ebay.com" },
-        { field: "subject", operator: "contains", value: "order confirmation" },
-        { field: "subject", operator: "contains", value: "your order" },
-        { field: "subject", operator: "contains", value: "has shipped" },
-      ],
-    },
+    matches: (m) =>
+      containsAny(fromText(m), ["amazon.com", "shopee", "lazada", "tiki.vn", "ebay.com"]) ||
+      containsAny(subjectText(m), ["order confirmation", "your order", "has shipped"]),
   },
 ];
 
@@ -73,16 +70,14 @@ const PROVISIONED_KEY_PREFIX = "category_folders_provisioned:";
 // or a user switching accounts back and forth before the first call
 // settles. Without this, both calls can read the "not yet provisioned"
 // settings flag before either has a chance to write it, and each goes on
-// to create its own duplicate set of folders and rules.
+// to create its own duplicate set of folders.
 const provisioningInFlight = new Set<string>();
 
 /**
- * Creates the default Junk/Social/Promotions/Shopping folders (and, for the
- * three heuristic categories, a starter Rule that routes new mail into
- * them) the first time an account's folders are loaded. Gated by a
- * per-account settings flag so it runs exactly once — after that, a user
- * who deletes the folder or rule stays deleted rather than being
- * recreated on every sync.
+ * Creates the default Junk/Social/Promotions/Shopping folders the first
+ * time an account's folders are loaded. Gated by a per-account settings
+ * flag so it runs exactly once — after that, a user who deletes one of the
+ * folders stays deleted rather than being recreated on every sync.
  */
 export async function ensureDefaultCategoryFolders(
   account: Account,
@@ -113,20 +108,44 @@ export async function ensureDefaultCategoryFolders(
       } catch {
         continue; // Server rejected the folder (permissions, duplicate name, etc.) — leave it be.
       }
-      const folder = await repo.createFolderRecord(account.id, category.path, category.path, category.specialUse);
+      await repo.createFolderRecord(account.id, category.path, category.path, category.specialUse);
       changed = true;
-
-      if (category.rule) {
-        await repo.createRule(account.id, {
-          name: category.rule.name,
-          matchType: "any",
-          conditions: category.rule.conditions,
-          actions: [{ type: "move", folderId: folder.id }],
-        });
-      }
     }
     return changed;
   } finally {
     provisioningInFlight.delete(account.id);
   }
+}
+
+/**
+ * Scans newly-arrived inbox mail and files anything that matches a
+ * built-in category straight into its Social/Promotions/Shopping folder —
+ * mirroring Gmail's own inbox tabs. This runs automatically as part of the
+ * sync pipeline and is independent of the user's own Rules; it only ever
+ * looks at mail landing in the inbox.
+ */
+export async function classifyAndFileNewMessages(
+  account: Account,
+  folder: FolderRow,
+  allFolders: FolderRow[],
+  messages: EmailMessage[],
+): Promise<Set<number>> {
+  const filed = new Set<number>();
+  if (folder.special_use !== "inbox" || messages.length === 0) return filed;
+
+  const connection = toImapConnection(account);
+  for (const message of messages) {
+    const category = CATEGORIES.find((c) => c.matches?.(message));
+    if (!category) continue;
+    const destination = allFolders.find((f) => f.special_use === category.specialUse);
+    if (!destination) continue;
+    try {
+      await commands.imapMoveMessage(connection, folder.path, message.uid, destination.path);
+      await repo.deleteMessage(`${folder.id}:${message.uid}`);
+      filed.add(message.uid);
+    } catch {
+      // Best-effort — leave it in the inbox if the move fails.
+    }
+  }
+  return filed;
 }

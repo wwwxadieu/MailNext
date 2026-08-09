@@ -3,7 +3,7 @@ import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
 import * as repo from "@/lib/repository";
 import { applyRulesToNewMessages } from "@/lib/rules";
-import { ensureDefaultCategoryFolders } from "@/lib/categoryFolders";
+import { classifyAndFileNewMessages, ensureDefaultCategoryFolders } from "@/lib/categoryFolders";
 import type { Account, FolderRow, MessageRow } from "@/types/mail";
 
 interface MailState {
@@ -88,7 +88,15 @@ export const useMailStore = create<MailState>((set, get) => ({
 
       await repo.cacheMessages(account.id, folder.id, remoteMessages);
       if (newMessages.length > 0) {
-        await applyRulesToNewMessages(account, folder, get().folders, newMessages);
+        // Built-in category filing (Gmail-style tabs) runs first and is
+        // independent of the user's own Rules; anything it already moved
+        // out of the inbox is excluded from the Rules pass below so a
+        // matching custom rule doesn't try to move it a second time.
+        const filed = await classifyAndFileNewMessages(account, folder, get().folders, newMessages);
+        const remaining = filed.size > 0 ? newMessages.filter((m) => !filed.has(m.uid)) : newMessages;
+        if (remaining.length > 0) {
+          await applyRulesToNewMessages(account, folder, get().folders, remaining);
+        }
       }
 
       const messages = await repo.listMessages(folder.id);
