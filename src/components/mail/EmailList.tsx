@@ -25,7 +25,11 @@ import type { MessageRow } from "@/types/mail";
 
 type QuickFilter = "all" | "unread" | "flagged" | "attachments";
 
-export function EmailList() {
+interface EmailListProps {
+  width?: number;
+}
+
+export function EmailList({ width }: EmailListProps = {}) {
   const t = useT();
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const folders = useMailStore((s) => s.folders);
@@ -211,7 +215,10 @@ export function EmailList() {
   const canToolbarDelete = (selectionMode && selectedIds.size > 0) || (!selectionMode && !!selectedMessageId);
 
   return (
-    <section className="solid-panel flex w-[360px] flex-shrink-0 flex-col rounded-none border-y-0">
+    <section
+      className="solid-panel flex flex-shrink-0 flex-col rounded-none border-y-0"
+      style={{ width: width ? `${width}px` : "360px" }}
+    >
       <header className="flex flex-shrink-0 flex-col gap-2 border-b border-black/5 dark:border-white/10 p-3">
         <div className="flex items-center gap-2 rounded-xl bg-black/5 dark:bg-white/5 px-2.5 py-1.5 border border-black/5 dark:border-white/5">
           <Search size={14} strokeWidth={1.5} className="text-neutral-400" />

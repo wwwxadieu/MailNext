@@ -10,6 +10,7 @@ import { FloatingComposeButton } from "@/components/mail/FloatingComposeButton";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { UpdateBanner } from "@/components/update/UpdateBanner";
+import { PanelResizer } from "@/components/layout/PanelResizer";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
@@ -97,6 +98,16 @@ export default function App() {
     };
   }, [accounts, folders]);
 
+  const [emailListWidth, setEmailListWidth] = useState<number>(() => {
+    const saved = localStorage.getItem("mailnext_email_list_width");
+    return saved ? Number(saved) : 360;
+  });
+
+  const handleResizeList = (newWidth: number) => {
+    setEmailListWidth(newWidth);
+    localStorage.setItem("mailnext_email_list_width", String(newWidth));
+  };
+
   if (!bootstrapped || !hydrated) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-transparent">
@@ -128,7 +139,17 @@ export default function App() {
         >
           <Sidebar />
         </div>
-        <EmailList />
+        {!isReadingPaneExpanded && (
+          <>
+            <EmailList width={emailListWidth} />
+            <PanelResizer
+              currentWidth={emailListWidth}
+              onResize={handleResizeList}
+              minWidth={260}
+              maxWidth={650}
+            />
+          </>
+        )}
         <EmailView />
       </div>
       <ComposeModal />
