@@ -93,12 +93,25 @@ export const useMailStore = create<MailState>((set, get) => ({
         set({ syncStage: "idle", folderSyncProgress: null });
       }
     } catch (err) {
+      // Fall back to whatever folders are already cached locally — a
+      // transient network hiccup (very common right after the app
+      // restarts, e.g. right after an update) shouldn't blank out mail
+      // the user already had synced. Mirrors the same fallback already
+      // in `loadMessages` below.
+      const folders = await repo.listFolders(account.id);
       set({
+        folders,
         isLoadingFolders: false,
         error: err instanceof Error ? err.message : String(err),
         syncStage: "idle",
         folderSyncProgress: null,
       });
+
+      const inbox = folders.find((f) => f.special_use === "inbox") ?? folders[0];
+      if (inbox && !get().selectedFolderId) {
+        get().selectFolder(inbox.id);
+        await get().loadMessages(account, inbox);
+      }
     } finally {
       unlisten();
       loadFoldersInFlight.delete(account.id);
