@@ -14,15 +14,19 @@ import { useUiStore } from "@/store/useUiStore";
 import type { SettingsPanel } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
 
-const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIcon }[] = [
-  { id: "general", labelKey: "settings.tab.general", icon: SunMoon },
+// Ordered by how often someone actually reaches for each tab: identity and
+// day-to-day preferences first, mail-shaping features next, and the
+// standalone "Updates" status page last (set off by a divider, since it's
+// not a mail-configuration tab like the rest).
+const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIcon; dividerBefore?: boolean }[] = [
   { id: "accounts", labelKey: "settings.tab.accounts", icon: AtSign },
+  { id: "general", labelKey: "settings.tab.general", icon: SunMoon },
+  { id: "notifications", labelKey: "settings.tab.notifications", icon: Bell },
+  { id: "rules", labelKey: "settings.tab.rules", icon: Filter },
+  { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
   { id: "signatures", labelKey: "settings.tab.signatures", icon: PenLine },
   { id: "templates", labelKey: "settings.tab.templates", icon: FileText },
-  { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
-  { id: "rules", labelKey: "settings.tab.rules", icon: Filter },
-  { id: "notifications", labelKey: "settings.tab.notifications", icon: Bell },
-  { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw },
+  { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw, dividerBefore: true },
 ];
 
 export function SettingsModal() {
@@ -35,20 +39,22 @@ export function SettingsModal() {
     <Modal open={panel !== null} onClose={closeSettings} title={t("settings.title")} widthClassName="max-w-2xl">
       <div className="flex gap-5">
         <div className="w-36 flex-shrink-0 border-r border-black/5 dark:border-white/10 pr-3">
-          {TABS.map(({ id, labelKey, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => openSettings(id)}
-              className={clsx(
-                "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                panel === id
-                  ? "bg-accent/10 text-accent"
-                  : "text-neutral-600 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/10",
-              )}
-            >
-              <Icon size={15} strokeWidth={1.5} />
-              {t(labelKey)}
-            </button>
+          {TABS.map(({ id, labelKey, icon: Icon, dividerBefore }) => (
+            <div key={id}>
+              {dividerBefore && <div className="my-2 border-t border-black/5 dark:border-white/10" />}
+              <button
+                onClick={() => openSettings(id)}
+                className={clsx(
+                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                  panel === id
+                    ? "bg-accent/10 text-accent"
+                    : "text-neutral-600 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/10",
+                )}
+              >
+                <Icon size={15} strokeWidth={1.5} />
+                {t(labelKey)}
+              </button>
+            </div>
           ))}
         </div>
         <div className="min-h-[280px] flex-1">

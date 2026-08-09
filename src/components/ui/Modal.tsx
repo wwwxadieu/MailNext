@@ -1,9 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import clsx from "clsx";
 import { IconButton } from "@/components/ui/IconButton";
 import { useT } from "@/lib/useT";
+
+const EXIT_DURATION_MS = 180;
 
 interface ModalProps {
   open: boolean;
@@ -15,6 +18,22 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, children, widthClassName = "max-w-md" }: ModalProps) {
   const t = useT();
+  // Stays mounted for a beat after `open` goes false so the exit transition
+  // below actually has time to play, instead of the dialog just vanishing.
+  const [rendered, setRendered] = useState(open);
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      const id = requestAnimationFrame(() => setEntered(true));
+      return () => cancelAnimationFrame(id);
+    }
+    setEntered(false);
+    const timeout = setTimeout(() => setRendered(false), EXIT_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -24,13 +43,25 @@ export function Modal({ open, onClose, title, children, widthClassName = "max-w-
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!rendered) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div
-        className={`glass-panel-elevated relative w-full ${widthClassName} mx-4 rounded-2xl p-5`}
+        className={clsx(
+          "absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity ease-out",
+          entered ? "opacity-100" : "opacity-0",
+        )}
+        style={{ transitionDuration: `${EXIT_DURATION_MS}ms` }}
+        onClick={onClose}
+      />
+      <div
+        className={clsx(
+          "glass-panel-elevated relative w-full mx-4 rounded-2xl p-5 transition-[opacity,transform] ease-out",
+          widthClassName,
+          entered ? "scale-100 opacity-100" : "scale-95 opacity-0",
+        )}
+        style={{ transitionDuration: `${EXIT_DURATION_MS}ms` }}
         role="dialog"
         aria-modal="true"
         aria-label={title}

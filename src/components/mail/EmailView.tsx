@@ -278,7 +278,7 @@ export function EmailView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div key={message.id} className="content-fade-in flex-1 overflow-y-auto p-5">
         {(summary || summaryError) && (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent/5 p-3">
             <Sparkles size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-accent" />
