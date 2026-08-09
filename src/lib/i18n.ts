@@ -293,6 +293,11 @@ const en: Dict = {
   "profile.imageTooLarge": "Image size should be under 2MB",
   "folder.colorLabel": "Folder color",
   "folder.markAllRead": "Mark all as read",
+  "emailView.unsubscribe": "Unsubscribe",
+  "emailView.unsubscribeToast": "Opened unsubscribe link in browser.",
+  "emailView.showDetails": "Details",
+  "emailView.hideDetails": "Hide details",
+  "emailView.quickComposeTo": "Quick compose to {email}",
 };
 
 const vi: Dict = {
@@ -581,6 +586,11 @@ const vi: Dict = {
   "profile.imageTooLarge": "Dung lượng ảnh phải nhỏ hơn 2MB",
   "folder.colorLabel": "Màu thư mục",
   "folder.markAllRead": "Đánh dấu tất cả đã đọc",
+  "emailView.unsubscribe": "Hủy đăng ký",
+  "emailView.unsubscribeToast": "Đã mở liên kết Hủy đăng ký trên trình duyệt.",
+  "emailView.showDetails": "Chi tiết",
+  "emailView.hideDetails": "Ẩn chi tiết",
+  "emailView.quickComposeTo": "Soạn thư nhanh cho {email}",
 };
 
 export const translations: Record<Locale, Dict> = { en, vi };

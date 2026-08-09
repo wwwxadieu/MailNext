@@ -41,6 +41,8 @@ export function ComposeModal() {
     setEntered(false);
   }, [isComposing]);
 
+  const composeRecipient = useUiStore((s) => s.composeRecipient);
+
   if (!isComposing) return null;
 
   async function handleDetach(draft: ComposeDraft) {
@@ -93,6 +95,7 @@ export function ComposeModal() {
             </div>
           </div>
           <ComposeForm
+            initialDraft={{ to: composeRecipient ?? "" }}
             onSent={closeCompose}
             onDetach={(draft) => void handleDetach(draft)}
             bodyMinHeightClassName={isExpanded ? "min-h-[320px]" : undefined}

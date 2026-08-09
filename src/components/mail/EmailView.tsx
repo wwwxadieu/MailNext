@@ -3,17 +3,23 @@ import type { ReactNode } from "react";
 import { format } from "date-fns";
 import {
   Archive,
+  BellOff,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
   Flag,
   Forward,
   Loader2,
   Mail,
   Maximize2,
   Minimize2,
+  Moon,
   Paperclip,
   Reply,
   Send,
   Signature,
   Sparkles,
+  Sun,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,6 +32,7 @@ import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import * as repo from "@/lib/repository";
 import { extractPlainText } from "@/lib/text";
+import { extractUnsubscribeUrl } from "@/lib/unsubscribe";
 import { toImapConnection, toSmtpConnection } from "@/lib/connection";
 import { useT } from "@/lib/useT";
 import type { MessageRow, OutgoingMessage, SignatureRow } from "@/types/mail";
@@ -34,12 +41,6 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Quotes the original message as escaped plain text rather than embedding
-// its raw HTML: `message.body_html` is untrusted and normally only ever
-// rendered inside HtmlMessageFrame's script-less sandboxed iframe (see that
-// file's docs) — pasting it straight into this contentEditable body would
-// let inline event-handler attributes (e.g. <img onerror=...>) execute in
-// the app's own unsandboxed webview.
 function buildForwardQuote(message: MessageRow, toLabel: string): string {
   const plainBody = extractPlainText(message.body_text, message.body_html);
   const quotedLines = escapeHtml(plainBody).split("\n").join("<br>");
@@ -66,6 +67,7 @@ export function EmailView() {
   const toggleFlag = useMailStore((s) => s.toggleFlag);
   const isReadingPaneExpanded = useUiStore((s) => s.isReadingPaneExpanded);
   const toggleReadingPaneExpanded = useUiStore((s) => s.toggleReadingPaneExpanded);
+  const openCompose = useUiStore((s) => s.openCompose);
 
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
   const message = messages.find((m) => m.id === selectedMessageId) ?? null;
@@ -82,7 +84,15 @@ export function EmailView() {
   const [summarizing, setSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
+  const [showDetails, setShowDetails] = useState(false);
+  const [readingTheme, setReadingTheme] = useState<"auto" | "light" | "dark">("auto");
+  const [unsubscribeToast, setUnsubscribeToast] = useState(false);
+
   const toAddresses = useMemo(() => (message ? repo.parseAddresses(message.to_json) : []), [message]);
+  const unsubscribeUrl = useMemo(
+    () => (message ? extractUnsubscribeUrl(message.body_html, message.body_text) : null),
+    [message],
+  );
 
   useEffect(() => {
     setSummary(null);
@@ -91,6 +101,8 @@ export function EmailView() {
     setComposeMode(null);
     setReplyBody("");
     setForwardTo("");
+    setShowDetails(false);
+    setUnsubscribeToast(false);
   }, [message?.id]);
 
   useEffect(() => {
@@ -119,6 +131,17 @@ export function EmailView() {
   function insertSignature(signature: SignatureRow) {
     setSignaturesOpen(false);
     setReplyBody((current) => `${current}<br><br>${signature.content_html}`);
+  }
+
+  function toggleReadingTheme() {
+    setReadingTheme((current) => (current === "auto" ? "light" : current === "light" ? "dark" : "auto"));
+  }
+
+  function handleUnsubscribe() {
+    if (!unsubscribeUrl) return;
+    window.open(unsubscribeUrl, "_blank");
+    setUnsubscribeToast(true);
+    setTimeout(() => setUnsubscribeToast(false), 4000);
   }
 
   if (!message) {
@@ -229,6 +252,29 @@ export function EmailView() {
             {message.subject}
           </h1>
           <div className="flex flex-shrink-0 items-center gap-1">
+            {unsubscribeUrl && (
+              <button
+                onClick={handleUnsubscribe}
+                className="flex items-center gap-1.5 rounded-full bg-danger/10 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/20 transition-all mr-1"
+                title={t("emailView.unsubscribe") ?? "Hủy đăng ký nhận thư"}
+              >
+                <BellOff size={13} strokeWidth={2} />
+                <span>{t("emailView.unsubscribe") ?? "Hủy đăng ký"}</span>
+              </button>
+            )}
+
+            <ActionButton
+              label={`Nền đọc: ${readingTheme === "light" ? "Sáng" : readingTheme === "dark" ? "Tối" : "Tự động"}`}
+              onClick={toggleReadingTheme}
+              active={readingTheme !== "auto"}
+            >
+              {readingTheme === "light" ? (
+                <Sun size={15} strokeWidth={1.5} className="text-amber-500" />
+              ) : (
+                <Moon size={15} strokeWidth={1.5} />
+              )}
+            </ActionButton>
+
             <ActionButton label={t("emailView.summarize")} onClick={handleSummarize} active={summary !== null}>
               {summarizing ? (
                 <Loader2 size={15} className="animate-spin" strokeWidth={1.5} />
@@ -264,21 +310,97 @@ export function EmailView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <SenderAvatar name={message.from_name} address={message.from_address} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
-              {message.from_name || message.from_address}
-            </p>
-            <p className="truncate text-xs text-neutral-400">
-              {t("emailView.to", { names: toAddresses.map((a) => a.name || a.address).join(", ") || t("emailView.you") })}
-            </p>
+        {/* Sender Info & Expander Header */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => openCompose(undefined, message.from_address || "")}
+              className="flex items-center gap-3 text-left group hover:opacity-90 transition-opacity"
+              title={t("emailView.quickComposeTo", { email: message.from_address || message.from_name || "" }) ?? `Soạn thư nhanh cho ${message.from_address}`}
+            >
+              <SenderAvatar name={message.from_name} address={message.from_address} size={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-accent transition-colors">
+                  {message.from_name || message.from_address}
+                </p>
+                <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                  <span>
+                    {t("emailView.to", {
+                      names: toAddresses.map((a) => a.name || a.address).join(", ") || t("emailView.you"),
+                    })}
+                  </span>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              className="flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-neutral-500 hover:bg-black/10 dark:hover:bg-white/15 dark:text-neutral-300 transition-colors"
+            >
+              <span>{showDetails ? (t("emailView.hideDetails") ?? "Ẩn chi tiết") : (t("emailView.showDetails") ?? "Chi tiết")}</span>
+              {showDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+
+            <div className="flex-1" />
+            <p className="flex-shrink-0 text-xs text-neutral-400">{safeFormat(message.date)}</p>
           </div>
-          <p className="flex-shrink-0 text-xs text-neutral-400">{safeFormat(message.date)}</p>
+
+          {/* Expanded Metadata Panel */}
+          {showDetails && (
+            <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-3 text-xs space-y-1.5 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">Từ:</span>
+                <button
+                  onClick={() => openCompose(undefined, message.from_address || "")}
+                  className="text-accent hover:underline font-medium truncate text-left"
+                >
+                  {message.from_name ? `${message.from_name} <${message.from_address}>` : message.from_address}
+                </button>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">Đến:</span>
+                <span className="text-neutral-700 dark:text-neutral-200 truncate">
+                  {toAddresses.map((a) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(", ") || t("emailView.you")}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">Thời gian:</span>
+                <span className="text-neutral-600 dark:text-neutral-300">{safeFormat(message.date)}</span>
+              </div>
+              {message.message_id && (
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">ID:</span>
+                  <span className="text-neutral-500 font-mono text-[11px] truncate">{message.message_id}</span>
+                </div>
+              )}
+              {unsubscribeUrl && (
+                <div className="flex items-center gap-2 pt-1.5 border-t border-black/5 dark:border-white/10">
+                  <span className="font-semibold text-neutral-400 w-16 flex-shrink-0">Đăng ký:</span>
+                  <button
+                    onClick={handleUnsubscribe}
+                    className="text-xs font-semibold text-danger hover:underline flex items-center gap-1"
+                  >
+                    <BellOff size={13} />
+                    <span>Mở liên kết Hủy đăng ký nhận thư</span>
+                    <ExternalLink size={11} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-5">
+        {unsubscribeToast && (
+          <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-danger/20 bg-danger/10 p-3 text-xs text-danger font-medium animate-in fade-in duration-200">
+            <span>{t("emailView.unsubscribeToast") ?? "Đã mở liên kết Hủy đăng ký trên trình duyệt."}</span>
+            <button onClick={() => setUnsubscribeToast(false)} className="text-neutral-400 hover:text-neutral-600">
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         {(summary || summaryError) && (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent/5 p-3">
             <Sparkles size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-accent" />
@@ -302,11 +424,22 @@ export function EmailView() {
         )}
 
         {message.body_html ? (
-          <HtmlMessageFrame html={message.body_html} />
+          <HtmlMessageFrame html={message.body_html} overrideTheme={readingTheme} />
         ) : (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-200">
-            {message.body_text}
-          </p>
+          <div
+            className="rounded-xl p-4 transition-colors duration-200"
+            style={
+              readingTheme === "light"
+                ? { backgroundColor: "#ffffff", color: "#1c1c1e" }
+                : readingTheme === "dark"
+                  ? { backgroundColor: "#1c1c1e", color: "#f2f2f7" }
+                  : undefined
+            }
+          >
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-200">
+              {message.body_text}
+            </p>
+          </div>
         )}
 
         {message.has_attachments === 1 && (

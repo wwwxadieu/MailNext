@@ -5,6 +5,7 @@ import { useThemeStore } from "@/store/useThemeStore";
 
 interface HtmlMessageFrameProps {
   html: string;
+  overrideTheme?: "light" | "dark" | "auto" | null;
 }
 
 function frameStyle(isDark: boolean): string {
@@ -18,6 +19,7 @@ function frameStyle(isDark: boolean): string {
       font-size: 14px;
       line-height: 1.5;
       color: ${isDark ? "#f2f2f7" : "#1c1c1e"};
+      background-color: ${isDark ? "#1c1c1e" : "#ffffff"};
       word-wrap: break-word;
       overflow-wrap: break-word;
     }
@@ -36,9 +38,11 @@ function frameStyle(isDark: boolean): string {
  * Remote images are blocked until the reader explicitly opts in, to avoid
  * silently leaking read receipts to tracking pixels.
  */
-export function HtmlMessageFrame({ html }: HtmlMessageFrameProps) {
+export function HtmlMessageFrame({ html, overrideTheme }: HtmlMessageFrameProps) {
   const t = useT();
-  const isDark = useThemeStore((s) => s.resolved === "dark");
+  const appIsDark = useThemeStore((s) => s.resolved === "dark");
+  const isDark = overrideTheme === "light" ? false : overrideTheme === "dark" ? true : appIsDark;
+
   const [imagesAllowed, setImagesAllowed] = useState(false);
   const [height, setHeight] = useState(120);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -48,16 +52,16 @@ export function HtmlMessageFrame({ html }: HtmlMessageFrameProps) {
   const srcDoc = useMemo(() => {
     const processed = imagesAllowed
       ? html
-      : html.replace(/(<img[^>]+)\bsrc\s*=\s*(["'])(https?:)/gi, '$1data-blocked-src=$2$3');
+      : html.replace(/(<img[^>]+)\bsrc\s*=\s*(["'])(https?:)/gi, "$1data-blocked-src=$2$3");
     return `<!doctype html><html><head><meta charset="utf-8" />${frameStyle(isDark)}</head><body>${processed}</body></html>`;
   }, [html, imagesAllowed, isDark]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 transition-colors duration-200 rounded-xl overflow-hidden p-1" style={{ backgroundColor: isDark ? "#1c1c1e" : "#ffffff" }}>
       {hasRemoteImages && !imagesAllowed && (
         <button
           onClick={() => setImagesAllowed(true)}
-          className="flex w-fit items-center gap-1.5 rounded-full bg-black/5 dark:bg-white/10 px-3 py-1 text-xs text-neutral-500 hover:bg-black/10 dark:text-neutral-400 dark:hover:bg-white/15"
+          className="flex w-fit items-center gap-1.5 rounded-full bg-black/5 dark:bg-white/10 px-3 py-1 text-xs text-neutral-500 hover:bg-black/10 dark:text-neutral-400 dark:hover:bg-white/15 m-2"
         >
           <ImageOff size={13} strokeWidth={1.5} />
           {t("emailView.imagesBlocked")}
