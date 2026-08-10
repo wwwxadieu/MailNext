@@ -50,8 +50,8 @@ const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIc
   { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
   { id: "signatures", labelKey: "settings.tab.signatures", icon: PenLine },
   { id: "templates", labelKey: "settings.tab.templates", icon: FileText },
-  { id: "backup", labelKey: "settings.tab.backup", icon: HardDrive },
-  { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw, dividerBefore: true },
+  { id: "backup", labelKey: "settings.tab.backup", icon: HardDrive, dividerBefore: true },
+  { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw },
 ];
 
 export function SettingsModal() {
@@ -61,40 +61,48 @@ export function SettingsModal() {
   const openSettings = useUiStore((s) => s.openSettings);
 
   return (
-    <Modal open={panel !== null} onClose={closeSettings} title={t("settings.title")} widthClassName="max-w-2xl">
-      <div className="flex gap-5">
-        <div className="w-36 flex-shrink-0 border-r border-black/5 dark:border-white/10 pr-3">
-          {TABS.map(({ id, labelKey, icon: Icon, dividerBefore }) => (
-            <div key={id}>
-              {dividerBefore && <div className="my-2 border-t border-black/5 dark:border-white/10" />}
-              <button
-                onClick={() => openSettings(id)}
-                className={clsx(
-                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
-                  panel === id
-                    ? "bg-accent/10 text-accent"
-                    : "text-neutral-600 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/10",
-                )}
-              >
-                <Icon size={15} strokeWidth={1.5} />
-                {t(labelKey) ?? (id === "backup" ? "Sao lưu" : id)}
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="min-h-[280px] flex-1">
-          <Suspense fallback={null}>
-            {panel === "general" && <GeneralSettings />}
-            {panel === "accounts" && <AccountsSettings />}
-            {panel === "signatures" && <SignatureEditor />}
-            {panel === "templates" && <TemplateManager />}
-            {panel === "labels" && <LabelManager />}
-            {panel === "rules" && <RulesSettings />}
-            {panel === "notifications" && <NotificationSettings />}
-            {panel === "backup" && <BackupSettings />}
-            {panel === "updates" && <UpdateSettings />}
-          </Suspense>
-        </div>
+    <Modal
+      open={panel !== null}
+      onClose={closeSettings}
+      title={t("settings.title")}
+      widthClassName="max-w-2xl"
+      panelClassName="bg-white/97 dark:bg-neutral-900/95"
+      noBodyPadding
+    >
+      {/* Horizontal, icon-over-label tab bar — the classic macOS
+       * System Preferences / Mail Preferences pane layout, in place of the
+       * left vertical sidebar this used to have. */}
+      <nav className="flex flex-wrap gap-0.5 border-b border-black/5 bg-black/[0.015] px-3 py-2.5 dark:border-white/10 dark:bg-white/[0.015]">
+        {TABS.map(({ id, labelKey, icon: Icon, dividerBefore }) => (
+          <div key={id} className="flex items-center">
+            {dividerBefore && <div className="mx-1.5 h-8 w-px bg-black/10 dark:bg-white/10" />}
+            <button
+              onClick={() => openSettings(id)}
+              className={clsx(
+                "flex w-[62px] flex-col items-center gap-1 rounded-[10px] px-1 py-1.5 text-center transition-colors",
+                panel === id
+                  ? "bg-accent/12 text-accent"
+                  : "text-neutral-500 hover:bg-black/5 dark:text-neutral-400 dark:hover:bg-white/10",
+              )}
+            >
+              <Icon size={19} strokeWidth={1.6} />
+              <span className="text-[10.5px] font-medium leading-none">{t(labelKey)}</span>
+            </button>
+          </div>
+        ))}
+      </nav>
+      <div className="min-h-[300px] px-5 py-5">
+        <Suspense fallback={null}>
+          {panel === "general" && <GeneralSettings />}
+          {panel === "accounts" && <AccountsSettings />}
+          {panel === "signatures" && <SignatureEditor />}
+          {panel === "templates" && <TemplateManager />}
+          {panel === "labels" && <LabelManager />}
+          {panel === "rules" && <RulesSettings />}
+          {panel === "notifications" && <NotificationSettings />}
+          {panel === "backup" && <BackupSettings />}
+          {panel === "updates" && <UpdateSettings />}
+        </Suspense>
       </div>
     </Modal>
   );

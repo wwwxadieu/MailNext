@@ -35,6 +35,7 @@ pub fn oauth_config_for(provider: Provider) -> Result<OAuthClientConfig, String>
             token_url: "https://oauth2.googleapis.com/token".into(),
             scopes: vec![
                 "https://mail.google.com/".into(),
+                "https://www.googleapis.com/auth/calendar.readonly".into(),
                 "email".into(),
                 "profile".into(),
             ],

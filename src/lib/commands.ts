@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  CalendarEventDto,
   EmailMessage,
   FolderInfo,
   ImapConnection,
@@ -126,4 +127,12 @@ export function readBackupFile(path: string): Promise<string> {
 
 export function saveAttachmentFile(path: string, contentBase64: string): Promise<void> {
   return invoke("save_attachment_file", { path, contentBase64 });
+}
+
+export function gmailListCalendarEvents(
+  accessToken: string,
+  timeMin: string,
+  timeMax: string,
+): Promise<CalendarEventDto[]> {
+  return invoke("gmail_list_calendar_events", { accessToken, timeMin, timeMax });
 }

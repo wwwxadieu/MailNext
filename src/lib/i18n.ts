@@ -337,6 +337,7 @@ const en: Dict = {
   "calendar.upcoming": "Upcoming events",
   "calendar.loading": "Scanning synced mail for calendar invites…",
   "calendar.noEvents": "No upcoming events found in your synced mail.",
+  "calendar.reconnectHint": "Reconnect this Gmail account in Settings > Accounts to sync your real Google Calendar events here.",
 
   "accounts.active": "Active",
   "accounts.switchTo": "Switch to account",
@@ -674,6 +675,7 @@ const vi: Dict = {
   "calendar.upcoming": "Sự kiện sắp tới",
   "calendar.loading": "Đang quét thư đã đồng bộ để tìm lời mời lịch…",
   "calendar.noEvents": "Không tìm thấy sự kiện sắp tới nào trong thư đã đồng bộ.",
+  "calendar.reconnectHint": "Kết nối lại tài khoản Gmail này trong Cài đặt > Tài khoản để đồng bộ lịch Google Calendar thật.",
 
   "accounts.active": "Đang sử dụng",
   "accounts.switchTo": "Chuyển dùng",

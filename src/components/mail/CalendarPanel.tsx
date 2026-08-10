@@ -17,61 +17,100 @@ import { useAccountStore } from "@/store/useAccountStore";
 import * as repo from "@/lib/repository";
 import { decodeIcsAttachment, parseIcsEvents } from "@/lib/ics";
 import type { ParsedIcsEvent } from "@/lib/ics";
+import { fetchGoogleCalendarEvents } from "@/lib/googleCalendar";
+import type { GoogleCalendarStatus } from "@/lib/googleCalendar";
 import { useT } from "@/lib/useT";
+import type { Account } from "@/types/mail";
 
 interface UpcomingEvent extends ParsedIcsEvent {
-  messageSubject: string;
+  source: "google" | "ics";
 }
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const UPCOMING_WINDOW_DAYS = 60;
 
-/** Right-hand panel: a mini month calendar plus an "upcoming events" list
- * scraped from any .ics/.vcs calendar-invite attachments in the account's
- * cached mail (see src/lib/ics.ts) — there's no calendar API integration,
- * this is purely what's already sitting in synced messages. */
+/** Scans cached mail for .ics/.vcs calendar-invite attachments — the
+ * fallback source for every provider except Gmail (see below), and for
+ * Gmail itself whenever the real Calendar sync isn't available. */
+async function loadIcsEvents(account: Account): Promise<UpcomingEvent[]> {
+  const rows = await repo.listMessagesWithAttachments(account.id, 300);
+  // Include the last day too, in case a same-day invite already started —
+  // still useful context rather than noise.
+  const horizon = Date.now() - 24 * 60 * 60 * 1000;
+  const found: UpcomingEvent[] = [];
+  for (const row of rows) {
+    for (const attachment of repo.parseAttachments(row.attachments_json)) {
+      const looksLikeIcs = attachment.mimeType.includes("calendar") || /\.(ics|vcs)$/i.test(attachment.filename);
+      if (!looksLikeIcs) continue;
+      const text = decodeIcsAttachment(attachment.contentBase64);
+      if (!text) continue;
+      for (const event of parseIcsEvents(text)) {
+        if (event.start.getTime() >= horizon) {
+          found.push({ ...event, source: "ics" });
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** Right-hand panel: a mini month calendar plus an "upcoming events" list.
+ * Gmail accounts read real events straight from Google Calendar (see
+ * src/lib/googleCalendar.ts); every other provider — and Gmail accounts
+ * that haven't reconnected to grant the calendar scope yet — falls back to
+ * scanning .ics/.vcs calendar-invite attachments already sitting in synced
+ * mail (see src/lib/ics.ts). */
 export function CalendarPanel() {
   const t = useT();
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const [cursor, setCursor] = useState(() => new Date());
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [googleStatus, setGoogleStatus] = useState<GoogleCalendarStatus | null>(null);
 
   useEffect(() => {
     if (!activeAccount) {
       setEvents([]);
+      setGoogleStatus(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    void repo
-      .listMessagesWithAttachments(activeAccount.id, 300)
-      .then((rows) => {
+    setGoogleStatus(null);
+
+    const now = Date.now();
+    const timeMin = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    const timeMax = new Date(now + UPCOMING_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+    async function load(account: Account) {
+      if (account.provider === "gmail") {
+        const result = await fetchGoogleCalendarEvents(account, timeMin, timeMax);
         if (cancelled) return;
-        // Include the last day too, in case a same-day invite already
-        // started — still useful context rather than noise.
-        const horizon = Date.now() - 24 * 60 * 60 * 1000;
-        const found: UpcomingEvent[] = [];
-        for (const row of rows) {
-          for (const attachment of repo.parseAttachments(row.attachments_json)) {
-            const looksLikeIcs =
-              attachment.mimeType.includes("calendar") || /\.(ics|vcs)$/i.test(attachment.filename);
-            if (!looksLikeIcs) continue;
-            const text = decodeIcsAttachment(attachment.contentBase64);
-            if (!text) continue;
-            for (const event of parseIcsEvents(text)) {
-              if (event.start.getTime() >= horizon) {
-                found.push({ ...event, messageSubject: row.subject });
-              }
-            }
-          }
+        setGoogleStatus(result.status);
+        if (result.status === "ok") {
+          const mapped: UpcomingEvent[] = result.events.map((event) => ({
+            summary: event.summary,
+            start: new Date(event.start),
+            location: event.location,
+            allDay: event.allDay,
+            source: "google",
+          }));
+          mapped.sort((a, b) => a.start.getTime() - b.start.getTime());
+          setEvents(mapped.slice(0, 8));
+          setLoading(false);
+          return;
         }
-        found.sort((a, b) => a.start.getTime() - b.start.getTime());
-        setEvents(found.slice(0, 8));
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
+      }
+      const found = await loadIcsEvents(account);
+      if (cancelled) return;
+      found.sort((a, b) => a.start.getTime() - b.start.getTime());
+      setEvents(found.slice(0, 8));
+      setLoading(false);
+    }
+
+    void load(activeAccount).catch(() => {
+      if (!cancelled) setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -154,6 +193,11 @@ export function CalendarPanel() {
           <CalendarDays size={12} strokeWidth={2} />
           {t("calendar.upcoming")}
         </p>
+        {googleStatus === "needs_reconnect" && (
+          <p className="flex-shrink-0 rounded-xl border border-warning/20 bg-warning/10 p-2.5 text-[11px] leading-relaxed text-warning">
+            {t("calendar.reconnectHint")}
+          </p>
+        )}
         {loading && <p className="text-xs text-neutral-400">{t("calendar.loading")}</p>}
         {!loading && events.length === 0 && <p className="text-xs text-neutral-400">{t("calendar.noEvents")}</p>}
         {events.map((event, index) => (
