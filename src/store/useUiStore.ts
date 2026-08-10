@@ -19,6 +19,7 @@ interface UiState {
   settingsPanel: SettingsPanel;
   isFolderModalOpen: boolean;
   isReadingPaneExpanded: boolean;
+  isCalendarPanelOpen: boolean;
 
   openCompose: (inReplyTo?: string, recipient?: string) => void;
   closeCompose: () => void;
@@ -27,6 +28,7 @@ interface UiState {
   openFolderModal: () => void;
   closeFolderModal: () => void;
   toggleReadingPaneExpanded: () => void;
+  toggleCalendarPanel: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -36,6 +38,7 @@ export const useUiStore = create<UiState>((set) => ({
   settingsPanel: null,
   isFolderModalOpen: false,
   isReadingPaneExpanded: false,
+  isCalendarPanelOpen: false,
 
   openCompose: (inReplyTo, recipient) =>
     set({ isComposing: true, composeInReplyTo: inReplyTo ?? null, composeRecipient: recipient ?? null }),
@@ -45,4 +48,5 @@ export const useUiStore = create<UiState>((set) => ({
   openFolderModal: () => set({ isFolderModalOpen: true }),
   closeFolderModal: () => set({ isFolderModalOpen: false }),
   toggleReadingPaneExpanded: () => set((s) => ({ isReadingPaneExpanded: !s.isReadingPaneExpanded })),
+  toggleCalendarPanel: () => set((s) => ({ isCalendarPanelOpen: !s.isCalendarPanelOpen })),
 }));

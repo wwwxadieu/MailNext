@@ -3,12 +3,16 @@ import * as repo from "@/lib/repository";
 import { toImapConnection } from "@/lib/connection";
 import type { Account, EmailMessage, FolderRow, ImapConnection, SpecialUse } from "@/types/mail";
 
-function fromText(message: EmailMessage): string {
-  return `${message.from?.name ?? ""} ${message.from?.address ?? ""}`.toLowerCase();
+interface MessageTextContext {
+  from: string;
+  subject: string;
 }
 
-function subjectText(message: EmailMessage): string {
-  return message.subject.toLowerCase();
+function messageContext(message: EmailMessage): MessageTextContext {
+  return {
+    from: `${message.from?.name ?? ""} ${message.from?.address ?? ""}`.toLowerCase(),
+    subject: message.subject.toLowerCase(),
+  };
 }
 
 function containsAny(haystack: string, needles: string[]): boolean {
@@ -26,8 +30,10 @@ interface CategoryDef {
    * Omitted for "junk" — real providers already flag spam server-side (see
    * `classify_special_use` in the Rust IMAP layer), and a client-side
    * keyword guess for spam is more likely to bury legitimate mail than
-   * catch anything a provider's own filter missed. */
-  matches?: (message: EmailMessage) => boolean;
+   * catch anything a provider's own filter missed (see `looksLikeJunk`
+   * below, which is used only for the non-destructive "badge hint" in
+   * EmailList — never for auto-filing). */
+  matches?: (ctx: MessageTextContext) => boolean;
 }
 
 const CATEGORIES: CategoryDef[] = [
@@ -35,8 +41,8 @@ const CATEGORIES: CategoryDef[] = [
   {
     specialUse: "social",
     path: "Social",
-    matches: (m) =>
-      containsAny(fromText(m), [
+    matches: (ctx) =>
+      containsAny(ctx.from, [
         "facebookmail.com",
         "facebook.com",
         "instagram.com",
@@ -50,18 +56,64 @@ const CATEGORIES: CategoryDef[] = [
   {
     specialUse: "promotions",
     path: "Promotions",
-    matches: (m) =>
-      containsAny(subjectText(m), ["% off", "sale", "discount"]) ||
-      containsAny(fromText(m), ["mailchimp", "hubspot", "klaviyo"]),
+    matches: (ctx) =>
+      containsAny(ctx.subject, ["% off", "sale", "discount"]) ||
+      containsAny(ctx.from, ["mailchimp", "hubspot", "klaviyo"]),
   },
   {
     specialUse: "shopping",
     path: "Shopping",
-    matches: (m) =>
-      containsAny(fromText(m), ["amazon.com", "shopee", "lazada", "tiki.vn", "ebay.com"]) ||
-      containsAny(subjectText(m), ["order confirmation", "your order", "has shipped"]),
+    matches: (ctx) =>
+      containsAny(ctx.from, ["amazon.com", "shopee", "lazada", "tiki.vn", "ebay.com"]) ||
+      containsAny(ctx.subject, ["order confirmation", "your order", "has shipped"]),
   },
 ];
+
+// Loose spam signal words, checked only for the EmailList "badge hint" —
+// never used to auto-file or auto-delete anything (see the comment on
+// CategoryDef.matches above for why junk stays out of CATEGORIES itself).
+const JUNK_HINT_KEYWORDS = [
+  "viagra",
+  "casino",
+  "lottery",
+  "bạn đã trúng",
+  "trúng thưởng",
+  "vay tiền nhanh",
+  "miễn phí 100%",
+  "click here now",
+  "wire transfer",
+  "crypto giveaway",
+  "nạp tiền miễn phí",
+  "làm giàu nhanh",
+];
+
+/**
+ * Client-side "what kind of mail is this" hint for the EmailList badge —
+ * reuses the same sender/subject heuristics as the automatic inbox-tab
+ * filing above (`classifyAndFileNewMessages`), plus a loose junk-keyword
+ * check for messages sitting outside the Junk folder. Purely advisory: it
+ * never moves or deletes anything on its own, it only informs what
+ * suggested action the badge offers the user.
+ */
+export function detectMessageCategoryHint(input: {
+  fromName: string | null;
+  fromAddress: string | null;
+  subject: string;
+  snippet?: string;
+}): SpecialUse | null {
+  const ctx: MessageTextContext = {
+    from: `${input.fromName ?? ""} ${input.fromAddress ?? ""}`.toLowerCase(),
+    subject: input.subject.toLowerCase(),
+  };
+  for (const category of CATEGORIES) {
+    if (category.matches?.(ctx)) return category.specialUse;
+  }
+  const snippetLower = (input.snippet ?? "").toLowerCase();
+  if (containsAny(ctx.subject, JUNK_HINT_KEYWORDS) || containsAny(snippetLower, JUNK_HINT_KEYWORDS)) {
+    return "junk";
+  }
+  return null;
+}
 
 const PROVISIONED_KEY_PREFIX = "category_folders_provisioned:";
 
@@ -139,7 +191,7 @@ export async function classifyAndFileNewMessages(
   // session for all its matches, instead of reconnecting per message.
   const byDestination = new Map<string, { destination: FolderRow; uids: number[] }>();
   for (const message of messages) {
-    const category = CATEGORIES.find((c) => c.matches?.(message));
+    const category = CATEGORIES.find((c) => c.matches?.(messageContext(message)));
     if (!category) continue;
     const destination = allFolders.find((f) => f.special_use === category.specialUse);
     if (!destination) continue;

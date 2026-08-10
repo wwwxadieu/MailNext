@@ -123,3 +123,7 @@ export function saveBackupFile(path: string, content: string): Promise<void> {
 export function readBackupFile(path: string): Promise<string> {
   return invoke("read_backup_file", { path });
 }
+
+export function saveAttachmentFile(path: string, contentBase64: string): Promise<void> {
+  return invoke("save_attachment_file", { path, contentBase64 });
+}

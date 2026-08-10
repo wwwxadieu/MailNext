@@ -45,6 +45,7 @@ pub fn run() {
             commands::summarize::summarize_email,
             commands::backup::save_backup_file,
             commands::backup::read_backup_file,
+            commands::attachments::save_attachment_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the MailNext application");

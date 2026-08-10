@@ -14,7 +14,6 @@ import {
   Maximize2,
   Minimize2,
   Moon,
-  Paperclip,
   Reply,
   Send,
   Signature,
@@ -23,6 +22,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { AttachmentList } from "@/components/mail/AttachmentList";
 import { HtmlMessageFrame } from "@/components/mail/HtmlMessageFrame";
 import { RichTextEditor } from "@/components/mail/RichTextEditor";
 import { SenderAvatar } from "@/components/mail/SenderAvatar";
@@ -92,6 +92,11 @@ export function EmailView() {
   const toAddresses = useMemo(() => (message ? repo.parseAddresses(message.to_json) : []), [message]);
   const unsubscribeUrl = useMemo(
     () => (message ? extractUnsubscribeUrl(message.body_html, message.body_text) : null),
+    [message],
+  );
+
+  const attachments = useMemo(
+    () => (message?.has_attachments === 1 ? repo.parseAttachments(message.attachments_json) : []),
     [message],
   );
 
@@ -499,12 +504,7 @@ export function EmailView() {
           </div>
         )}
 
-        {message.has_attachments === 1 && (
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400">
-            <Paperclip size={13} strokeWidth={1.5} />
-            {t("emailView.hasAttachments")}
-          </div>
-        )}
+        <AttachmentList attachments={attachments} />
       </div>
 
       {composeMode && (

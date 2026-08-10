@@ -2,6 +2,7 @@ import { dbExecute, dbSelect } from "@/lib/db";
 import type {
   Account,
   EmailAddress,
+  EmailAttachment,
   EmailMessage,
   FolderInfo,
   FolderRow,
@@ -290,6 +291,16 @@ export async function listMessages(folderId: string, limit = 100): Promise<Messa
   );
 }
 
+/** Account-wide (not folder-scoped) lookup of recently-cached messages that
+ * carry an attachment, used by the calendar panel to scan for .ics invites
+ * without caring which folder they ended up in. */
+export async function listMessagesWithAttachments(accountId: string, limit = 300): Promise<MessageRow[]> {
+  return dbSelect<MessageRow>(
+    "SELECT * FROM messages WHERE account_id = ? AND has_attachments = 1 ORDER BY date DESC LIMIT ?",
+    [accountId, limit],
+  );
+}
+
 export async function setMessageReadState(messageId: string, isRead: boolean): Promise<void> {
   await dbExecute("UPDATE messages SET is_read = ? WHERE id = ?", [isRead ? 1 : 0, messageId]);
 }
@@ -301,6 +312,15 @@ export async function setMessageFlagged(messageId: string, isFlagged: boolean): 
 export function parseAddresses(json: string): EmailAddress[] {
   try {
     return JSON.parse(json) as EmailAddress[];
+  } catch {
+    return [];
+  }
+}
+
+export function parseAttachments(json: string): EmailAttachment[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as EmailAttachment[]) : [];
   } catch {
     return [];
   }

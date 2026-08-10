@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { CalendarDays } from "lucide-react";
 import clsx from "clsx";
 import { TitleBar } from "@/components/layout/TitleBar";
+import { IconButton } from "@/components/ui/IconButton";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { EmailList } from "@/components/mail/EmailList";
 import { EmailView } from "@/components/mail/EmailView";
+import { CalendarPanel } from "@/components/mail/CalendarPanel";
 import { ComposeModal } from "@/components/mail/ComposeModal";
 import { FloatingComposeButton } from "@/components/mail/FloatingComposeButton";
 import { SettingsModal } from "@/components/settings/SettingsModal";
@@ -24,6 +27,7 @@ import { toImapConnection } from "@/lib/connection";
 import { getSetting, setSetting } from "@/lib/repository";
 import { playChime } from "@/lib/sound";
 import type { ChimeId } from "@/lib/sound";
+import { useT } from "@/lib/useT";
 
 interface NewMailEvent {
   accountEmail: string;
@@ -34,6 +38,7 @@ interface NewMailEvent {
 }
 
 export default function App() {
+  const t = useT();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
   const hydrateUiScale = useUiScaleStore((s) => s.hydrate);
   const hydrateLocale = useLocaleStore((s) => s.hydrate);
@@ -47,6 +52,8 @@ export default function App() {
 
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const isReadingPaneExpanded = useUiStore((s) => s.isReadingPaneExpanded);
+  const isCalendarPanelOpen = useUiStore((s) => s.isCalendarPanelOpen);
+  const toggleCalendarPanel = useUiStore((s) => s.toggleCalendarPanel);
 
   const [bootstrapped, setBootstrapped] = useState(false);
   const [welcomeSeen, setWelcomeSeen] = useState(true);
@@ -150,7 +157,17 @@ export default function App() {
 
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
-      <TitleBar />
+      <TitleBar
+        right={
+          <IconButton
+            label={t(isCalendarPanelOpen ? "calendar.hidePanel" : "calendar.showPanel")}
+            active={isCalendarPanelOpen}
+            onClick={toggleCalendarPanel}
+          >
+            <CalendarDays size={15} strokeWidth={1.5} />
+          </IconButton>
+        }
+      />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
           aria-hidden={isReadingPaneExpanded}
@@ -173,6 +190,7 @@ export default function App() {
           </>
         )}
         <EmailView />
+        {isCalendarPanelOpen && <CalendarPanel />}
       </div>
       <ComposeModal />
       <FloatingComposeButton />

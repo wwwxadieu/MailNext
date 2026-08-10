@@ -5,23 +5,38 @@ import {
   CheckCircle2,
   ListFilter,
   Loader2,
+  Megaphone,
   Paperclip,
   RefreshCw,
   Search,
+  ShieldAlert,
+  ShoppingBag,
   Star,
   Tag,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import clsx from "clsx";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useUiStore } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
+import { detectMessageCategoryHint } from "@/lib/categoryFolders";
 import { SenderAvatar } from "@/components/mail/SenderAvatar";
 import { MessageContextMenu } from "@/components/mail/MessageContextMenu";
-import type { MessageRow } from "@/types/mail";
+import type { MessageRow, SpecialUse } from "@/types/mail";
+
+type BadgeCategory = "promotions" | "social" | "shopping" | "junk";
+
+const BADGE_STYLE: Record<BadgeCategory, { icon: LucideIcon; classes: string }> = {
+  promotions: { icon: Megaphone, classes: "bg-warning/10 text-warning" },
+  social: { icon: Users, classes: "bg-indigo-500/10 text-indigo-500 dark:text-indigo-400" },
+  shopping: { icon: ShoppingBag, classes: "bg-accent/10 text-accent" },
+  junk: { icon: ShieldAlert, classes: "bg-danger/10 text-danger" },
+};
 
 type QuickFilter = "all" | "unread" | "flagged" | "attachments";
 
@@ -185,6 +200,22 @@ export function EmailList({ width }: EmailListProps = {}) {
     for (const target of targets) {
       await markRead(activeAccount, folder, target, true);
     }
+  }
+
+  // A junk *hint* is only a loose keyword guess (see categoryFolders.ts), so
+  // its suggested action is the reversible "move to Trash" rather than
+  // filing straight into Junk the way a confident promo/social/shopping
+  // match does.
+  function badgeDestinationFolder(category: BadgeCategory) {
+    const targetUse: SpecialUse = category === "junk" ? "trash" : category;
+    return folders.find((f) => f.special_use === targetUse);
+  }
+
+  async function handleBadgeAction(message: MessageRow, category: BadgeCategory) {
+    if (!activeAccount || !folder) return;
+    const destination = badgeDestinationFolder(category);
+    if (!destination) return;
+    await moveMessages(activeAccount, folder, [message], destination);
   }
 
   const syncPercent =
@@ -459,6 +490,15 @@ export function EmailList({ width }: EmailListProps = {}) {
 
         {filtered.map((message) => {
           const isChecked = selectedIds.has(message.id);
+          const categoryHint = detectMessageCategoryHint({
+            fromName: message.from_name,
+            fromAddress: message.from_address,
+            subject: message.subject,
+            snippet: message.snippet,
+          }) as BadgeCategory | null;
+          // Redundant once the message already lives in its matching
+          // category folder (e.g. viewing the Promotions folder itself).
+          const badge = categoryHint && folder?.special_use !== categoryHint ? categoryHint : null;
           return (
             <button
               key={message.id}
@@ -529,6 +569,26 @@ export function EmailList({ width }: EmailListProps = {}) {
                     {message.subject}
                   </span>
                 </div>
+                {badge && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleBadgeAction(message, badge);
+                    }}
+                    title={t(`emailList.badge.${badge}Action`)}
+                    className={clsx(
+                      "flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-opacity hover:opacity-75",
+                      BADGE_STYLE[badge].classes,
+                    )}
+                  >
+                    {(() => {
+                      const Icon = BADGE_STYLE[badge].icon;
+                      return <Icon size={10} strokeWidth={2} />;
+                    })()}
+                    {t(`emailList.badge.${badge}`)}
+                  </button>
+                )}
                 <p className="truncate text-[12px] text-neutral-400">{message.snippet}</p>
               </div>
             </button>
