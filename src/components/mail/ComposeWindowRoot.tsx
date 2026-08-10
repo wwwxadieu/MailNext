@@ -37,7 +37,7 @@ export function ComposeWindowRoot() {
   }
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl">
       <TitleBar>
         <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("compose.title")}</span>
       </TitleBar>

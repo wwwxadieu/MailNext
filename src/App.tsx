@@ -135,7 +135,7 @@ export default function App() {
 
   if (!bootstrapped || !hydrated) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-transparent">
+      <div className="flex h-full w-full items-center justify-center bg-transparent">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
       </div>
     );
@@ -143,7 +143,7 @@ export default function App() {
 
   if (accounts.length === 0) {
     return (
-      <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl">
         <TitleBar />
         {welcomeSeen ? (
           <Onboarding onComplete={() => {}} />
@@ -156,7 +156,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl">
       <TitleBar
         right={
           <IconButton
