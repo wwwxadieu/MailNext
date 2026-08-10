@@ -9,16 +9,18 @@ export type SettingsPanel =
   | "rules"
   | "notifications"
   | "updates"
+  | "backup"
   | null;
 
 interface UiState {
   isComposing: boolean;
   composeInReplyTo: string | null;
+  composeRecipient: string | null;
   settingsPanel: SettingsPanel;
   isFolderModalOpen: boolean;
   isReadingPaneExpanded: boolean;
 
-  openCompose: (inReplyTo?: string) => void;
+  openCompose: (inReplyTo?: string, recipient?: string) => void;
   closeCompose: () => void;
   openSettings: (panel: SettingsPanel) => void;
   closeSettings: () => void;
@@ -30,12 +32,14 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   isComposing: false,
   composeInReplyTo: null,
+  composeRecipient: null,
   settingsPanel: null,
   isFolderModalOpen: false,
   isReadingPaneExpanded: false,
 
-  openCompose: (inReplyTo) => set({ isComposing: true, composeInReplyTo: inReplyTo ?? null }),
-  closeCompose: () => set({ isComposing: false, composeInReplyTo: null }),
+  openCompose: (inReplyTo, recipient) =>
+    set({ isComposing: true, composeInReplyTo: inReplyTo ?? null, composeRecipient: recipient ?? null }),
+  closeCompose: () => set({ isComposing: false, composeInReplyTo: null, composeRecipient: null }),
   openSettings: (panel) => set({ settingsPanel: panel ?? "accounts" }),
   closeSettings: () => set({ settingsPanel: null }),
   openFolderModal: () => set({ isFolderModalOpen: true }),

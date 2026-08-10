@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import clsx from "clsx";
-import { AtSign, Bell, FileText, Filter, PenLine, RefreshCw, SunMoon, Tag } from "lucide-react";
+import { AtSign, Bell, FileText, Filter, HardDrive, PenLine, RefreshCw, SunMoon, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useUiStore } from "@/store/useUiStore";
@@ -34,6 +34,9 @@ const NotificationSettings = lazy(() =>
 const UpdateSettings = lazy(() =>
   import("@/components/settings/UpdateSettings").then((m) => ({ default: m.UpdateSettings })),
 );
+const BackupSettings = lazy(() =>
+  import("@/components/settings/BackupSettings").then((m) => ({ default: m.BackupSettings })),
+);
 
 // Ordered by how often someone actually reaches for each tab: identity and
 // day-to-day preferences first, mail-shaping features next, and the
@@ -47,6 +50,7 @@ const TABS: { id: Exclude<SettingsPanel, null>; labelKey: string; icon: LucideIc
   { id: "labels", labelKey: "settings.tab.labels", icon: Tag },
   { id: "signatures", labelKey: "settings.tab.signatures", icon: PenLine },
   { id: "templates", labelKey: "settings.tab.templates", icon: FileText },
+  { id: "backup", labelKey: "settings.tab.backup", icon: HardDrive },
   { id: "updates", labelKey: "settings.tab.updates", icon: RefreshCw, dividerBefore: true },
 ];
 
@@ -73,7 +77,7 @@ export function SettingsModal() {
                 )}
               >
                 <Icon size={15} strokeWidth={1.5} />
-                {t(labelKey)}
+                {t(labelKey) ?? (id === "backup" ? "Sao lưu" : id)}
               </button>
             </div>
           ))}
@@ -87,6 +91,7 @@ export function SettingsModal() {
             {panel === "labels" && <LabelManager />}
             {panel === "rules" && <RulesSettings />}
             {panel === "notifications" && <NotificationSettings />}
+            {panel === "backup" && <BackupSettings />}
             {panel === "updates" && <UpdateSettings />}
           </Suspense>
         </div>

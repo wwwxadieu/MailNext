@@ -11,6 +11,7 @@ import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { WelcomeScreen } from "@/components/onboarding/WelcomeScreen";
 import { UpdateBanner } from "@/components/update/UpdateBanner";
+import { PanelResizer } from "@/components/layout/PanelResizer";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
@@ -41,6 +42,7 @@ export default function App() {
   const accounts = useAccountStore((s) => s.accounts);
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const folders = useMailStore((s) => s.folders);
+  const loadFolders = useMailStore((s) => s.loadFolders);
   const loadMessages = useMailStore((s) => s.loadMessages);
 
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
@@ -66,6 +68,12 @@ export default function App() {
     setWelcomeSeen(true);
     void setSetting("welcome_seen", "true");
   }
+
+  // Automatically load folders and messages on app launch or active account switch
+  useEffect(() => {
+    if (!activeAccount) return;
+    void loadFolders(activeAccount);
+  }, [activeAccount?.id]);
 
   // Check for app updates shortly after launch, then periodically in the
   // background — never in the middle of a download already in progress.
@@ -108,6 +116,16 @@ export default function App() {
     };
   }, [accounts, folders]);
 
+  const [emailListWidth, setEmailListWidth] = useState<number>(() => {
+    const saved = localStorage.getItem("mailnext_email_list_width");
+    return saved ? Number(saved) : 360;
+  });
+
+  const handleResizeList = (newWidth: number) => {
+    setEmailListWidth(newWidth);
+    localStorage.setItem("mailnext_email_list_width", String(newWidth));
+  };
+
   if (!bootstrapped || !hydrated) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-transparent">
@@ -143,7 +161,17 @@ export default function App() {
         >
           <Sidebar />
         </div>
-        <EmailList />
+        {!isReadingPaneExpanded && (
+          <>
+            <EmailList width={emailListWidth} />
+            <PanelResizer
+              currentWidth={emailListWidth}
+              onResize={handleResizeList}
+              minWidth={260}
+              maxWidth={650}
+            />
+          </>
+        )}
         <EmailView />
       </div>
       <ComposeModal />

@@ -115,3 +115,11 @@ export function stopMailWatcher(accountEmail: string, folder: string): Promise<v
 export function summarizeEmail(subject: string, body: string): Promise<string> {
   return invoke("summarize_email", { subject, body });
 }
+
+export function saveBackupFile(path: string, content: string): Promise<void> {
+  return invoke("save_backup_file", { path, content });
+}
+
+export function readBackupFile(path: string): Promise<string> {
+  return invoke("read_backup_file", { path });
+}

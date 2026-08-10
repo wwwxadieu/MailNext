@@ -97,6 +97,21 @@ export async function updateAccountTokens(
   );
 }
 
+export async function updateAccountProfile(
+  accountId: string,
+  displayName: string,
+  color: string,
+  avatarData?: string | null,
+): Promise<Account> {
+  await dbExecute(
+    "UPDATE accounts SET display_name = ?, color = ?, avatar_data = ? WHERE id = ?",
+    [displayName, color, avatarData ?? null, accountId],
+  );
+  const [account] = await dbSelect<Account>("SELECT * FROM accounts WHERE id = ?", [accountId]);
+  if (!account) throw new Error("Failed to find updated account");
+  return account;
+}
+
 // ---------------------------------------------------------------------------
 // Folders
 // ---------------------------------------------------------------------------
@@ -203,6 +218,15 @@ export async function createFolderRecord(
 
 export async function deleteFolderRecord(folderId: string): Promise<void> {
   await dbExecute("DELETE FROM folders WHERE id = ?", [folderId]);
+}
+
+export async function updateFolderColor(folderId: string, color: string | null): Promise<void> {
+  await dbExecute("UPDATE folders SET color = ? WHERE id = ?", [color, folderId]);
+}
+
+export async function markAllMessagesReadInFolder(folderId: string): Promise<void> {
+  await dbExecute("UPDATE messages SET is_read = 1 WHERE folder_id = ?", [folderId]);
+  await dbExecute("UPDATE folders SET unread_count = 0 WHERE id = ?", [folderId]);
 }
 
 // ---------------------------------------------------------------------------

@@ -41,6 +41,8 @@ export function ComposeModal() {
     setEntered(false);
   }, [isComposing]);
 
+  const composeRecipient = useUiStore((s) => s.composeRecipient);
+
   if (!isComposing) return null;
 
   async function handleDetach(draft: ComposeDraft) {
@@ -72,9 +74,9 @@ export function ComposeModal() {
           transitionTimingFunction: EASE,
         }}
       >
-        <div className="glass-panel-elevated flex flex-1 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-2xl">
-          <div className="flex flex-shrink-0 items-center justify-between rounded-t-2xl border-b border-black/5 dark:border-white/10 px-4 py-2.5">
-            <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">{t("compose.title")}</span>
+        <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-black/15 bg-white/98 text-neutral-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-black/10 backdrop-blur-2xl dark:border-white/15 dark:bg-neutral-900/98 dark:text-neutral-100 dark:ring-white/10">
+          <div className="flex flex-shrink-0 items-center justify-between rounded-t-2xl border-b border-black/10 bg-black/[0.02] px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+            <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{t("compose.title")}</span>
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setIsExpanded((v) => !v)}
@@ -93,6 +95,7 @@ export function ComposeModal() {
             </div>
           </div>
           <ComposeForm
+            initialDraft={{ to: composeRecipient ?? "" }}
             onSent={closeCompose}
             onDetach={(draft) => void handleDetach(draft)}
             bodyMinHeightClassName={isExpanded ? "min-h-[320px]" : undefined}

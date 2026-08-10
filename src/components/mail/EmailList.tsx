@@ -1,5 +1,18 @@
 import { useMemo, useState } from "react";
-import { CheckSquare, ListFilter, Loader2, Paperclip, RefreshCw, Search, Square, Star, Tag, Trash2, X } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  CheckCircle2,
+  ListFilter,
+  Loader2,
+  Paperclip,
+  RefreshCw,
+  Search,
+  Star,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
 import clsx from "clsx";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -12,7 +25,11 @@ import type { MessageRow } from "@/types/mail";
 
 type QuickFilter = "all" | "unread" | "flagged" | "attachments";
 
-export function EmailList() {
+interface EmailListProps {
+  width?: number;
+}
+
+export function EmailList({ width }: EmailListProps = {}) {
   const t = useT();
   const activeAccount = useAccountStore((s) => s.activeAccount());
   const folders = useMailStore((s) => s.folders);
@@ -32,14 +49,22 @@ export function EmailList() {
   const folderSyncProgress = useMailStore((s) => s.folderSyncProgress);
   const openSettings = useUiStore((s) => s.openSettings);
 
+  type SortOption = "newest" | "oldest" | "unread_first" | "read_first";
+
   const [query, setQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: MessageRow } | null>(null);
+
   const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
-  const isTrash = folder?.special_use === "trash";
+  const folderNameLower = (folder?.name ?? "").toLowerCase();
+  const isTrash = folder?.special_use === "trash" || folderNameLower.includes("thùng rác") || folderNameLower.includes("trash");
+  const isJunk = folder?.special_use === "junk" || folderNameLower.includes("thư rác") || folderNameLower.includes("junk") || folderNameLower.includes("spam");
+  const canEmptyFolder = isTrash || isJunk;
 
   async function handleSync() {
     if (!activeAccount || isSyncing) return;
@@ -67,29 +92,79 @@ export function EmailList() {
     });
   }
 
-  /** Returns whether the deletion actually happened, so callers can tell a
-   * user-cancelled confirm dialog apart from a completed delete (and, e.g.,
-   * avoid clearing an active multi-select just because they hit "Cancel"). */
+  const filtered = useMemo(() => {
+    let result = [...messages];
+    if (quickFilter === "unread") result = result.filter((m) => m.is_read === 0);
+    else if (quickFilter === "flagged") result = result.filter((m) => m.is_flagged === 1);
+    else if (quickFilter === "attachments") result = result.filter((m) => m.has_attachments === 1);
+
+    const q = query.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (m) =>
+          m.subject.toLowerCase().includes(q) ||
+          (m.from_name ?? "").toLowerCase().includes(q) ||
+          (m.from_address ?? "").toLowerCase().includes(q) ||
+          m.snippet.toLowerCase().includes(q),
+      );
+    }
+
+    if (sortOption === "newest") {
+      result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortOption === "oldest") {
+      result.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } else if (sortOption === "unread_first") {
+      result.sort((a, b) => a.is_read - b.is_read || new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortOption === "read_first") {
+      result.sort((a, b) => b.is_read - a.is_read || new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
+    return result;
+  }, [messages, query, quickFilter, sortOption]);
+
+  const isAllSelected = filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id));
+
+  function toggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((m) => m.id)));
+    }
+  }
+
+  /** Deletes messages (moving to Trash or deleting permanently if in Trash/Junk or if trash folder not found) */
   async function deleteTargets(targets: MessageRow[]): Promise<boolean> {
     if (!activeAccount || !folder || targets.length === 0) return false;
-    if (isTrash) {
+    if (isTrash || isJunk) {
       const confirmMsg =
         targets.length === 1
-          ? t("emailList.confirmDeletePermanent")
-          : t("emailList.confirmDeleteSelectedPermanent", { count: targets.length });
+          ? (t("emailList.confirmDeletePermanent") ?? "Xóa vĩnh viễn thư này?")
+          : (t("emailList.confirmDeleteSelectedPermanent", { count: targets.length }) ?? `Xóa vĩnh viễn ${targets.length} thư đã chọn?`);
       if (!window.confirm(confirmMsg)) return false;
       await deleteMessagesPermanently(activeAccount, folder, targets);
     } else {
-      const trashFolder = folders.find((f) => f.special_use === "trash");
-      if (!trashFolder) return false;
-      await moveMessages(activeAccount, folder, targets, trashFolder);
+      // Find trash folder by special_use or name
+      const trashFolder =
+        folders.find((f) => f.special_use === "trash") ||
+        folders.find((f) => {
+          const fn = f.name.toLowerCase();
+          return fn.includes("thùng rác") || fn.includes("trash") || fn.includes("deleted");
+        });
+
+      if (trashFolder) {
+        await moveMessages(activeAccount, folder, targets, trashFolder);
+      } else {
+        // Fallback: if no trash folder exists, delete permanently
+        await deleteMessagesPermanently(activeAccount, folder, targets);
+      }
     }
     return true;
   }
 
-  async function handleEmptyTrash() {
+  async function handleEmptyCurrentFolder() {
     if (!activeAccount || !folder) return;
-    if (!window.confirm(t("emailList.confirmEmptyTrash"))) return;
+    const folderTitle = isJunk ? "thư rác" : "thùng rác";
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả thư trong ${folderTitle} không?`)) return;
     await emptyFolder(activeAccount, folder);
   }
 
@@ -126,23 +201,6 @@ export function EmailList() {
         ? t("emailList.syncingMessages")
         : null;
 
-  const filtered = useMemo(() => {
-    let result = messages;
-    if (quickFilter === "unread") result = result.filter((m) => m.is_read === 0);
-    else if (quickFilter === "flagged") result = result.filter((m) => m.is_flagged === 1);
-    else if (quickFilter === "attachments") result = result.filter((m) => m.has_attachments === 1);
-
-    const q = query.trim().toLowerCase();
-    if (!q) return result;
-    return result.filter(
-      (m) =>
-        m.subject.toLowerCase().includes(q) ||
-        (m.from_name ?? "").toLowerCase().includes(q) ||
-        (m.from_address ?? "").toLowerCase().includes(q) ||
-        m.snippet.toLowerCase().includes(q),
-    );
-  }, [messages, query, quickFilter]);
-
   function handleOpen(message: MessageRow) {
     if (selectionMode) {
       toggleSelected(message.id);
@@ -157,9 +215,12 @@ export function EmailList() {
   const canToolbarDelete = (selectionMode && selectedIds.size > 0) || (!selectionMode && !!selectedMessageId);
 
   return (
-    <section className="solid-panel flex w-[360px] flex-shrink-0 flex-col rounded-none border-y-0">
+    <section
+      className="solid-panel flex flex-shrink-0 flex-col rounded-none border-y-0"
+      style={{ width: width ? `${width}px` : "360px" }}
+    >
       <header className="flex flex-shrink-0 flex-col gap-2 border-b border-black/5 dark:border-white/10 p-3">
-        <div className="flex items-center gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
+        <div className="flex items-center gap-2 rounded-xl bg-black/5 dark:bg-white/5 px-2.5 py-1.5 border border-black/5 dark:border-white/5">
           <Search size={14} strokeWidth={1.5} className="text-neutral-400" />
           <input
             value={query}
@@ -174,6 +235,81 @@ export function EmailList() {
             {folder ? (folder.special_use ? t(`folder.${folder.special_use}`) : folder.name) : t("emailList.selectFolder")}
           </h1>
           <div className="flex flex-shrink-0 items-center gap-0.5">
+            {/* Sort Popover Icon Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSortMenuOpen((v) => !v)}
+                title={
+                  sortOption === "newest"
+                    ? "Sắp xếp: Mới nhất trước"
+                    : sortOption === "oldest"
+                      ? "Sắp xếp: Cũ nhất trước"
+                      : sortOption === "unread_first"
+                        ? "Sắp xếp: Chưa đọc lên đầu"
+                        : "Sắp xếp: Đã đọc lên đầu"
+                }
+                className={clsx(
+                  "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                  sortOption !== "newest"
+                    ? "bg-accent/15 text-accent font-semibold"
+                    : "text-neutral-400 hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200",
+                )}
+              >
+                <ArrowUpDown size={14} strokeWidth={1.5} />
+              </button>
+
+              {sortMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSortMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 p-1.5 shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                      Sắp xếp thư theo
+                    </p>
+                    <div className="space-y-0.5">
+                      {[
+                        { id: "newest", label: "Mới nhất trước" },
+                        { id: "oldest", label: "Cũ nhất trước" },
+                        { id: "unread_first", label: "🔵 Chưa đọc lên đầu" },
+                        { id: "read_first", label: "⚪ Đã đọc lên đầu" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setSortOption(opt.id as SortOption);
+                            setSortMenuOpen(false);
+                          }}
+                          className={clsx(
+                            "flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
+                            sortOption === opt.id
+                              ? "bg-accent/10 text-accent font-medium"
+                              : "text-neutral-700 dark:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/10",
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          {sortOption === opt.id && <Check size={12} className="text-accent" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                if (selectionMode) exitSelection();
+                else setSelectionMode(true);
+              }}
+              title={selectionMode ? "Tắt chế độ chọn" : "Bật chế độ chọn multi-select"}
+              className={clsx(
+                "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+                selectionMode ? "bg-accent/15 text-accent" : "text-neutral-400 hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200",
+              )}
+            >
+              <CheckCircle2 size={14} strokeWidth={1.5} />
+            </button>
             <button
               onClick={handleSync}
               disabled={!activeAccount || isSyncing}
@@ -204,13 +340,13 @@ export function EmailList() {
             >
               <Trash2 size={14} strokeWidth={1.5} />
             </button>
-            {isTrash && (
+            {canEmptyFolder && (
               <button
-                onClick={() => void handleEmptyTrash()}
-                title={t("emailList.emptyTrash")}
-                className="flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-danger transition-colors hover:bg-danger/10"
+                onClick={() => void handleEmptyCurrentFolder()}
+                title="Xóa tất cả thư trong thư mục này"
+                className="flex h-7 items-center gap-1 rounded-lg bg-danger/10 px-2 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
               >
-                {t("emailList.emptyTrash")}
+                Xóa tất cả
               </button>
             )}
           </div>
@@ -235,20 +371,38 @@ export function EmailList() {
         )}
 
         {selectionMode ? (
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-2.5 py-1.5">
-            <span className="text-[11px] font-medium text-accent">{t("selection.count", { count: selectedIds.size })}</span>
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-accent/10 px-2.5 py-1.5">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:opacity-80 transition-opacity"
+              >
+                <div
+                  className={clsx(
+                    "flex h-4 w-4 items-center justify-center rounded-full border transition-all",
+                    isAllSelected
+                      ? "border-accent bg-accent text-white"
+                      : "border-accent/60 bg-transparent",
+                  )}
+                >
+                  {isAllSelected && <Check size={10} strokeWidth={3} />}
+                </div>
+                <span>{isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}</span>
+              </button>
+              <span className="text-[11px] text-neutral-500 font-medium">({selectedIds.size})</span>
+            </div>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => void handleSelectionMarkRead()}
                 disabled={selectedIds.size === 0}
-                className="rounded-full px-2 py-1 text-[11px] font-medium text-accent hover:bg-accent/10 disabled:opacity-40"
+                className="rounded-full px-2 py-1 text-[11px] font-semibold text-accent hover:bg-accent/10 disabled:opacity-40"
               >
                 {t("selection.markRead")}
               </button>
               <button
                 onClick={() => void handleToolbarDelete()}
                 disabled={selectedIds.size === 0}
-                className="rounded-full px-2 py-1 text-[11px] font-medium text-danger hover:bg-danger/10 disabled:opacity-40"
+                className="rounded-full px-2 py-1 text-[11px] font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
               >
                 {t("selection.delete")}
               </button>
@@ -261,7 +415,7 @@ export function EmailList() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             {(
               [
                 ["all", t("emailList.filterAll")],
@@ -274,9 +428,9 @@ export function EmailList() {
                 key={value}
                 onClick={() => setQuickFilter(value)}
                 className={clsx(
-                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors flex-shrink-0",
                   quickFilter === value
-                    ? "bg-accent text-white"
+                    ? "bg-accent text-white shadow-sm"
                     : "bg-black/5 text-neutral-500 hover:bg-black/10 dark:bg-white/5 dark:text-neutral-400 dark:hover:bg-white/10",
                 )}
               >
@@ -316,21 +470,36 @@ export function EmailList() {
               className={clsx(
                 "flex w-full items-start gap-2.5 border-b border-black/5 px-4 py-3 text-left transition-colors dark:border-white/5",
                 message.id === selectedMessageId || isChecked
-                  ? "bg-accent/10"
+                  ? "bg-accent/10 dark:bg-accent/15"
                   : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
               )}
             >
-              {selectionMode ? (
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
-                  {isChecked ? (
-                    <CheckSquare size={18} strokeWidth={1.75} className="text-accent" />
-                  ) : (
-                    <Square size={18} strokeWidth={1.5} className="text-neutral-300 dark:text-neutral-600" />
-                  )}
-                </span>
-              ) : (
-                <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="mt-0.5" />
-              )}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!selectionMode) setSelectionMode(true);
+                  toggleSelected(message.id);
+                }}
+                className="flex flex-shrink-0 items-center justify-center cursor-pointer group/avatar relative"
+                title="Click để chọn email này"
+              >
+                {selectionMode ? (
+                  <div
+                    className={clsx(
+                      "flex h-5 w-5 items-center justify-center rounded-full border transition-all duration-200 mt-0.5",
+                      isChecked
+                        ? "border-accent bg-accent text-white shadow-sm ring-2 ring-accent/30 scale-105"
+                        : "border-neutral-300 dark:border-neutral-600 bg-black/5 dark:bg-white/10 hover:border-accent/60",
+                    )}
+                  >
+                    {isChecked && <Check size={12} strokeWidth={3} />}
+                  </div>
+                ) : (
+                  <div className="relative mt-0.5">
+                    <SenderAvatar name={message.from_name} address={message.from_address} size={28} className="transition-transform group-hover/avatar:scale-110" />
+                  </div>
+                )}
+              </div>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <span
@@ -353,7 +522,7 @@ export function EmailList() {
                     className={clsx(
                       "truncate text-[13px]",
                       message.is_read === 0
-                        ? "text-neutral-800 dark:text-neutral-100"
+                        ? "text-neutral-800 dark:text-neutral-100 font-medium"
                         : "text-neutral-500 dark:text-neutral-400",
                     )}
                   >

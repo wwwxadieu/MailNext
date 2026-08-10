@@ -43,5 +43,5 @@ jobs:
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
           releaseName: "MailNext ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false

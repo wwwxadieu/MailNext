@@ -10,6 +10,7 @@ interface AccountState {
   hydrate: () => Promise<void>;
   addAccount: (input: repo.NewAccountInput) => Promise<Account>;
   removeAccount: (accountId: string) => Promise<void>;
+  updateProfile: (accountId: string, displayName: string, color: string, avatarData?: string | null) => Promise<void>;
   setActiveAccount: (accountId: string) => void;
   activeAccount: () => Account | null;
 }
@@ -48,6 +49,13 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         state.activeAccountId === accountId ? (accounts[0]?.id ?? null) : state.activeAccountId;
       return { accounts, activeAccountId };
     });
+  },
+
+  updateProfile: async (accountId, displayName, color, avatarData) => {
+    const updated = await repo.updateAccountProfile(accountId, displayName, color, avatarData);
+    set((state) => ({
+      accounts: state.accounts.map((a) => (a.id === accountId ? updated : a)),
+    }));
   },
 
   setActiveAccount: (accountId) => set({ activeAccountId: accountId }),

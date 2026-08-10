@@ -118,6 +118,7 @@ export interface Account {
   token_expires_at: number | null;
   password_secret: string | null;
   color: string;
+  avatar_data?: string | null;
   sort_order: number;
   created_at: number;
 }
@@ -132,6 +133,7 @@ export interface FolderRow {
   unread_count: number;
   total_count: number;
   sort_order: number;
+  color?: string | null;
 }
 
 /** Row shape mirroring the `messages` SQLite table. */
