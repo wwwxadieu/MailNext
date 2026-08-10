@@ -57,6 +57,17 @@ export interface EmailAttachment {
   contentBase64: string;
 }
 
+/** A Google Calendar event, as fetched by `gmail_list_calendar_events`. */
+export interface CalendarEventDto {
+  id: string;
+  summary: string;
+  /** ISO 8601 — a full date-time for timed events, or just a date for
+   * all-day ones (see `allDay`). */
+  start: string;
+  allDay: boolean;
+  location: string | null;
+}
+
 export interface EmailMessage {
   uid: number;
   messageId: string;

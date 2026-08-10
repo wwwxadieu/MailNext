@@ -2,6 +2,7 @@ import { dbExecute, dbSelect } from "@/lib/db";
 import type {
   Account,
   EmailAddress,
+  EmailAttachment,
   EmailMessage,
   FolderInfo,
   FolderRow,
@@ -144,16 +145,32 @@ function folderPriority(specialUse: SpecialUse | null): number {
 }
 
 export async function syncFolders(accountId: string, folders: FolderInfo[]): Promise<void> {
+  const validPaths = new Set<string>();
+
   for (const folder of folders) {
+    validPaths.add(folder.path);
     const sortOrder = folderPriority(folder.specialUse);
-    const [existing] = await dbSelect<FolderRow>(
+    let [existing] = await dbSelect<FolderRow>(
       "SELECT * FROM folders WHERE account_id = ? AND path = ?",
       [accountId, folder.path],
     );
+    if (!existing) {
+      // Gmail doesn't encode a label's raw IMAP path consistently between
+      // syncs — the same non-ASCII label can come back modified-UTF-7
+      // encoded one time and as literal UTF-8 the next (see
+      // decode_imap_utf7 on the Rust side). A raw-path lookup misses that
+      // and would insert a duplicate row for what's really the same
+      // folder, so fall back to matching by the already-decoded display
+      // name and heal the row's path below instead.
+      [existing] = await dbSelect<FolderRow>(
+        "SELECT * FROM folders WHERE account_id = ? AND name = ?",
+        [accountId, folder.name],
+      );
+    }
     if (existing) {
       await dbExecute(
-        "UPDATE folders SET name = ?, special_use = ?, unread_count = ?, total_count = ?, sort_order = ? WHERE id = ?",
-        [folder.name, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder, existing.id],
+        "UPDATE folders SET name = ?, path = ?, special_use = ?, unread_count = ?, total_count = ?, sort_order = ? WHERE id = ?",
+        [folder.name, folder.path, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder, existing.id],
       );
     } else {
       await dbExecute(
@@ -161,6 +178,18 @@ export async function syncFolders(accountId: string, folders: FolderInfo[]): Pro
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [newId(), accountId, folder.name, folder.path, folder.specialUse, folder.unreadCount, folder.totalCount, sortOrder],
       );
+    }
+  }
+
+  // Clean up duplicates left behind by past syncs that hit the encoding
+  // drift above before this fix existed: any local row whose path the
+  // server no longer reports, but whose name was already claimed by a
+  // folder we just matched/updated above, is a stale leftover twin.
+  const localFolders = await dbSelect<FolderRow>("SELECT * FROM folders WHERE account_id = ?", [accountId]);
+  const namesSeen = new Set(folders.map((f) => f.name));
+  for (const row of localFolders) {
+    if (!validPaths.has(row.path) && namesSeen.has(row.name)) {
+      await dbExecute("DELETE FROM folders WHERE id = ?", [row.id]);
     }
   }
 }
@@ -205,41 +234,52 @@ export async function markAllMessagesReadInFolder(folderId: string): Promise<voi
 // Messages
 // ---------------------------------------------------------------------------
 
+const MESSAGE_COLUMNS = 18;
+// Keeps each INSERT's bound-parameter count comfortably under SQLite's
+// default 999-variable limit, while still turning what used to be one IPC
+// round-trip per message into a handful of round-trips for a full 50-message
+// sync page.
+const CACHE_MESSAGES_CHUNK_SIZE = 40;
+
 export async function cacheMessages(
   accountId: string,
   folderId: string,
   messages: EmailMessage[],
 ): Promise<void> {
-  for (const message of messages) {
-    const id = `${folderId}:${message.uid}`;
+  for (let start = 0; start < messages.length; start += CACHE_MESSAGES_CHUNK_SIZE) {
+    const chunk = messages.slice(start, start + CACHE_MESSAGES_CHUNK_SIZE);
+    const rowPlaceholders = chunk
+      .map(() => `(${Array(MESSAGE_COLUMNS).fill("?").join(", ")})`)
+      .join(", ");
+    const params = chunk.flatMap((message) => [
+      `${folderId}:${message.uid}`,
+      accountId,
+      folderId,
+      message.uid,
+      message.messageId,
+      message.subject,
+      message.from?.name ?? null,
+      message.from?.address ?? null,
+      JSON.stringify(message.to),
+      JSON.stringify(message.cc),
+      message.date,
+      message.snippet,
+      message.bodyHtml,
+      message.bodyText,
+      message.isRead ? 1 : 0,
+      message.isFlagged ? 1 : 0,
+      message.attachments.length > 0 ? 1 : 0,
+      JSON.stringify(message.attachments),
+    ]);
     await dbExecute(
       `INSERT INTO messages (
         id, account_id, folder_id, uid, message_id, subject, from_name, from_address,
         to_json, cc_json, date, snippet, body_html, body_text, is_read, is_flagged,
         has_attachments, attachments_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ${rowPlaceholders}
       ON CONFLICT (folder_id, uid) DO UPDATE SET
         subject = excluded.subject, is_read = excluded.is_read, is_flagged = excluded.is_flagged`,
-      [
-        id,
-        accountId,
-        folderId,
-        message.uid,
-        message.messageId,
-        message.subject,
-        message.from?.name ?? null,
-        message.from?.address ?? null,
-        JSON.stringify(message.to),
-        JSON.stringify(message.cc),
-        message.date,
-        message.snippet,
-        message.bodyHtml,
-        message.bodyText,
-        message.isRead ? 1 : 0,
-        message.isFlagged ? 1 : 0,
-        message.attachments.length > 0 ? 1 : 0,
-        JSON.stringify(message.attachments),
-      ],
+      params,
     );
   }
 }
@@ -248,6 +288,16 @@ export async function listMessages(folderId: string, limit = 100): Promise<Messa
   return dbSelect<MessageRow>(
     "SELECT * FROM messages WHERE folder_id = ? ORDER BY date DESC LIMIT ?",
     [folderId, limit],
+  );
+}
+
+/** Account-wide (not folder-scoped) lookup of recently-cached messages that
+ * carry an attachment, used by the calendar panel to scan for .ics invites
+ * without caring which folder they ended up in. */
+export async function listMessagesWithAttachments(accountId: string, limit = 300): Promise<MessageRow[]> {
+  return dbSelect<MessageRow>(
+    "SELECT * FROM messages WHERE account_id = ? AND has_attachments = 1 ORDER BY date DESC LIMIT ?",
+    [accountId, limit],
   );
 }
 
@@ -267,6 +317,15 @@ export function parseAddresses(json: string): EmailAddress[] {
   }
 }
 
+export function parseAttachments(json: string): EmailAttachment[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as EmailAttachment[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 /** UIDs already cached for a folder — used to tell genuinely new messages
  * (candidates for rule evaluation) from ones already synced before. */
 export async function listMessageUids(folderId: string): Promise<Set<number>> {
@@ -276,6 +335,12 @@ export async function listMessageUids(folderId: string): Promise<Set<number>> {
 
 export async function deleteMessage(messageId: string): Promise<void> {
   await dbExecute("DELETE FROM messages WHERE id = ?", [messageId]);
+}
+
+export async function deleteMessages(messageIds: string[]): Promise<void> {
+  if (messageIds.length === 0) return;
+  const placeholders = messageIds.map(() => "?").join(", ");
+  await dbExecute(`DELETE FROM messages WHERE id IN (${placeholders})`, messageIds);
 }
 
 export async function deleteMessagesByFolder(folderId: string): Promise<void> {

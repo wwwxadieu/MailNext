@@ -7,6 +7,7 @@ import { takeComposeHandoff } from "@/lib/composeWindow";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useThemeStore } from "@/store/useThemeStore";
 import { useLocaleStore } from "@/store/useLocaleStore";
+import { useUiScaleStore } from "@/store/useUiScaleStore";
 import { useT } from "@/lib/useT";
 
 /** Root rendered instead of <App /> when this window was opened as a
@@ -16,6 +17,7 @@ import { useT } from "@/lib/useT";
 export function ComposeWindowRoot() {
   const t = useT();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const hydrateUiScale = useUiScaleStore((s) => s.hydrate);
   const hydrateLocale = useLocaleStore((s) => s.hydrate);
   const hydrateAccounts = useAccountStore((s) => s.hydrate);
   const hydrated = useAccountStore((s) => s.hydrated);
@@ -25,7 +27,9 @@ export function ComposeWindowRoot() {
   const [initialDraft] = useState<ComposeDraft | undefined>(() => takeComposeHandoff() ?? undefined);
 
   useEffect(() => {
-    void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts()]).then(() => setReady(true));
+    void Promise.all([hydrateTheme(), hydrateUiScale(), hydrateLocale(), hydrateAccounts()]).then(() =>
+      setReady(true),
+    );
   }, []);
 
   function close() {
@@ -33,7 +37,7 @@ export function ComposeWindowRoot() {
   }
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl">
       <TitleBar>
         <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">{t("compose.title")}</span>
       </TitleBar>

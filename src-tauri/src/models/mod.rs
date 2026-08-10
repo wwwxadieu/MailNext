@@ -127,6 +127,18 @@ pub struct EmailAttachment {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CalendarEventDto {
+    pub id: String,
+    pub summary: String,
+    /// ISO 8601 — a `dateTime` for timed events, or just a `date` (no time
+    /// component) for all-day ones; see `all_day`.
+    pub start: String,
+    pub all_day: bool,
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EmailMessage {
     pub uid: u32,
     pub message_id: String,

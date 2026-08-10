@@ -1,27 +1,33 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { CalendarDays } from "lucide-react";
 import clsx from "clsx";
 import { TitleBar } from "@/components/layout/TitleBar";
+import { IconButton } from "@/components/ui/IconButton";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { EmailList } from "@/components/mail/EmailList";
 import { EmailView } from "@/components/mail/EmailView";
+import { CalendarPanel } from "@/components/mail/CalendarPanel";
 import { ComposeModal } from "@/components/mail/ComposeModal";
 import { FloatingComposeButton } from "@/components/mail/FloatingComposeButton";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { WelcomeScreen } from "@/components/onboarding/WelcomeScreen";
 import { UpdateBanner } from "@/components/update/UpdateBanner";
 import { PanelResizer } from "@/components/layout/PanelResizer";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useMailStore } from "@/store/useMailStore";
 import { useThemeStore } from "@/store/useThemeStore";
+import { useUiScaleStore } from "@/store/useUiScaleStore";
 import { useLocaleStore } from "@/store/useLocaleStore";
 import { useUpdateStore } from "@/store/useUpdateStore";
 import { useUiStore } from "@/store/useUiStore";
 import * as commands from "@/lib/commands";
 import { toImapConnection } from "@/lib/connection";
-import { getSetting } from "@/lib/repository";
+import { getSetting, setSetting } from "@/lib/repository";
 import { playChime } from "@/lib/sound";
 import type { ChimeId } from "@/lib/sound";
+import { useT } from "@/lib/useT";
 
 interface NewMailEvent {
   accountEmail: string;
@@ -32,7 +38,9 @@ interface NewMailEvent {
 }
 
 export default function App() {
+  const t = useT();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const hydrateUiScale = useUiScaleStore((s) => s.hydrate);
   const hydrateLocale = useLocaleStore((s) => s.hydrate);
   const hydrateAccounts = useAccountStore((s) => s.hydrate);
   const hydrated = useAccountStore((s) => s.hydrated);
@@ -44,12 +52,29 @@ export default function App() {
 
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates);
   const isReadingPaneExpanded = useUiStore((s) => s.isReadingPaneExpanded);
+  const isCalendarPanelOpen = useUiStore((s) => s.isCalendarPanelOpen);
+  const toggleCalendarPanel = useUiStore((s) => s.toggleCalendarPanel);
 
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [welcomeSeen, setWelcomeSeen] = useState(true);
 
   useEffect(() => {
-    void Promise.all([hydrateTheme(), hydrateLocale(), hydrateAccounts()]).then(() => setBootstrapped(true));
+    void Promise.all([
+      hydrateTheme(),
+      hydrateUiScale(),
+      hydrateLocale(),
+      hydrateAccounts(),
+      getSetting("welcome_seen"),
+    ]).then(([, , , , seen]) => {
+      setWelcomeSeen(seen === "true");
+      setBootstrapped(true);
+    });
   }, []);
+
+  function dismissWelcome() {
+    setWelcomeSeen(true);
+    void setSetting("welcome_seen", "true");
+  }
 
   // Automatically load folders and messages on app launch or active account switch
   useEffect(() => {
@@ -110,7 +135,7 @@ export default function App() {
 
   if (!bootstrapped || !hydrated) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-transparent">
+      <div className="flex h-full w-full items-center justify-center bg-transparent">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
       </div>
     );
@@ -118,17 +143,31 @@ export default function App() {
 
   if (accounts.length === 0) {
     return (
-      <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl">
         <TitleBar />
-        <Onboarding onComplete={() => {}} />
+        {welcomeSeen ? (
+          <Onboarding onComplete={() => {}} />
+        ) : (
+          <WelcomeScreen onContinue={dismissWelcome} />
+        )}
         <UpdateBanner />
       </div>
     );
   }
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden rounded-2xl">
-      <TitleBar />
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl">
+      <TitleBar
+        right={
+          <IconButton
+            label={t(isCalendarPanelOpen ? "calendar.hidePanel" : "calendar.showPanel")}
+            active={isCalendarPanelOpen}
+            onClick={toggleCalendarPanel}
+          >
+            <CalendarDays size={15} strokeWidth={1.5} />
+          </IconButton>
+        }
+      />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
           aria-hidden={isReadingPaneExpanded}
@@ -151,6 +190,7 @@ export default function App() {
           </>
         )}
         <EmailView />
+        {isCalendarPanelOpen && <CalendarPanel />}
       </div>
       <ComposeModal />
       <FloatingComposeButton />

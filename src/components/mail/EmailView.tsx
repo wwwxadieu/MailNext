@@ -14,7 +14,6 @@ import {
   Maximize2,
   Minimize2,
   Moon,
-  Paperclip,
   Reply,
   Send,
   Signature,
@@ -23,6 +22,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { AttachmentList } from "@/components/mail/AttachmentList";
 import { HtmlMessageFrame } from "@/components/mail/HtmlMessageFrame";
 import { RichTextEditor } from "@/components/mail/RichTextEditor";
 import { SenderAvatar } from "@/components/mail/SenderAvatar";
@@ -92,6 +92,11 @@ export function EmailView() {
   const toAddresses = useMemo(() => (message ? repo.parseAddresses(message.to_json) : []), [message]);
   const unsubscribeUrl = useMemo(
     () => (message ? extractUnsubscribeUrl(message.body_html, message.body_text) : null),
+    [message],
+  );
+
+  const attachments = useMemo(
+    () => (message?.has_attachments === 1 ? repo.parseAttachments(message.attachments_json) : []),
     [message],
   );
 
@@ -428,7 +433,7 @@ export function EmailView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div key={message.id} className="content-fade-in flex-1 overflow-y-auto p-5">
         {unsubscribeToast && (
           <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-danger/20 bg-danger/10 p-3 text-xs text-danger font-medium animate-in fade-in duration-200">
             <span>{t("emailView.unsubscribeToast") ?? "Đã mở liên kết Hủy đăng ký trên trình duyệt."}</span>
@@ -499,12 +504,7 @@ export function EmailView() {
           </div>
         )}
 
-        {message.has_attachments === 1 && (
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-neutral-400">
-            <Paperclip size={13} strokeWidth={1.5} />
-            {t("emailView.hasAttachments")}
-          </div>
-        )}
+        <AttachmentList attachments={attachments} />
       </div>
 
       {composeMode && (

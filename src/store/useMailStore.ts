@@ -235,22 +235,30 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   moveMessages: async (account, folder, messages, destination) => {
+    if (messages.length === 0) return;
     const connection = toImapConnection(account);
-    const movedIds = new Set<string>();
+    let movedIds: string[] = [];
     let unreadMovedCount = 0;
-    for (const message of messages) {
-      try {
-        await commands.imapMoveMessage(connection, folder.path, message.uid, destination.path);
-        await repo.deleteMessage(message.id);
-        movedIds.add(message.id);
-        if (message.is_read === 0) unreadMovedCount++;
-      } catch {
-        // Leave it in place if the move fails — the next sync reconciles it.
-      }
+    try {
+      // One IMAP session handling every UID, instead of reconnecting per
+      // message — the server-side move itself is still one command either way.
+      await commands.imapMoveMessages(
+        connection,
+        folder.path,
+        messages.map((m) => m.uid),
+        destination.path,
+      );
+      movedIds = messages.map((m) => m.id);
+      unreadMovedCount = messages.filter((m) => m.is_read === 0).length;
+      await repo.deleteMessages(movedIds);
+    } catch {
+      // Leave them in place if the move fails — the next sync reconciles it.
+      return;
     }
+    const movedSet = new Set(movedIds);
     set((state) => ({
-      messages: state.messages.filter((m) => !movedIds.has(m.id)),
-      selectedMessageId: movedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+      messages: state.messages.filter((m) => !movedSet.has(m.id)),
+      selectedMessageId: movedSet.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
       folders: state.folders.map((f) =>
         f.id === folder.id ? { ...f, unread_count: Math.max(0, f.unread_count - unreadMovedCount) } : f,
       ),
@@ -260,18 +268,14 @@ export const useMailStore = create<MailState>((set, get) => ({
   deleteMessagesPermanently: async (account, folder, messages) => {
     const connection = toImapConnection(account);
     const uids = messages.map((m) => m.uid);
-    let unreadDeletedCount = 0;
     await commands.imapDeleteMessages(connection, folder.path, uids);
-    const deletedIds = new Set(messages.map((m) => m.id));
-    for (const message of messages) {
-      if (deletedIds.has(message.id)) {
-        await repo.deleteMessage(message.id);
-        if (message.is_read === 0) unreadDeletedCount++;
-      }
-    }
+    const deletedIds = messages.map((m) => m.id);
+    const unreadDeletedCount = messages.filter((m) => m.is_read === 0).length;
+    await repo.deleteMessages(deletedIds);
+    const deletedSet = new Set(deletedIds);
     set((state) => ({
-      messages: state.messages.filter((m) => !deletedIds.has(m.id)),
-      selectedMessageId: deletedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+      messages: state.messages.filter((m) => !deletedSet.has(m.id)),
+      selectedMessageId: deletedSet.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
       folders: state.folders.map((f) =>
         f.id === folder.id ? { ...f, unread_count: Math.max(0, f.unread_count - unreadDeletedCount) } : f,
       ),

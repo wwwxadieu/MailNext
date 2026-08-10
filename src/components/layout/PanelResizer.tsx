@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import clsx from "clsx";
 
 interface PanelResizerProps {
@@ -17,7 +18,7 @@ export function PanelResizer({
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ReactMouseEvent) => {
       e.preventDefault();
       setIsDragging(true);
       const startX = e.clientX;

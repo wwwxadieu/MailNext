@@ -153,7 +153,7 @@ export function Sidebar() {
   );
 
   return (
-    <aside className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col border-r border-black/10 dark:border-white/10 bg-white/80 dark:bg-neutral-900/85 backdrop-blur-2xl backdrop-saturate-150 p-3 shadow-lg z-10 transition-all duration-300">
+    <aside className="glass-panel relative flex h-full w-60 min-h-0 flex-shrink-0 flex-col border-r border-black/10 dark:border-white/10 p-3 shadow-lg z-10 transition-all duration-300">
       {/* Account Profile Header */}
       <div className="relative mb-3">
         <button

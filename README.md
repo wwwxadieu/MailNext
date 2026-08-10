@@ -13,7 +13,8 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 - **Native Windows 11 toast notifications** plus synthesized audio chimes (Web Audio API — no bundled sound assets) for new mail, driven by a background IMAP poller.
 - **Local-first cache**: accounts, folders, messages, labels and signatures are cached in SQLite via `@tauri-apps/plugin-sql`.
 - **In-place auto-updates**: MailNext checks for new versions in the background, downloads the update inside the running app (no browser, no installer wizard), installs it silently, and only needs a one-click restart to finish — with a live progress bar showing bytes downloaded and download speed.
-- **AI email summaries**: a one-click "Summarize" action on any open message, powered by Claude (Anthropic). No per-user setup — configured once at build time; a message's subject and body are only sent to Anthropic when you click Summarize.
+- **Email summaries**: a one-click "Summarize" action on any open message. Runs entirely on-device — an extractive algorithm (no AI service, no API key, no network call) scores each sentence by word frequency and returns the highest-scoring ones in their original order.
+- **Calendar panel**: a mini month calendar plus an "upcoming events" list. For Gmail accounts it reads directly from Google Calendar (read-only); every other provider falls back to scanning `.ics`/`.vcs` calendar-invite attachments already sitting in synced mail — no calendar API integration needed there.
 
 ## Tech stack
 
@@ -26,7 +27,7 @@ A native desktop email client for Windows 11, built with Tauri v2, Rust and Reac
 | Mail protocols | `async-imap`, `lettre` (SMTP), `oauth2` (OAuth2 + PKCE)                 |
 | Notifications  | `@tauri-apps/plugin-notification` (native toasts) + Web Audio chimes   |
 | Updates        | `@tauri-apps/plugin-updater` + `@tauri-apps/plugin-process` (silent NSIS install + relaunch) |
-| AI summaries   | Claude Haiku 4.5 via the Anthropic Messages API (`reqwest` from Rust)  |
+| Summaries      | Local extractive algorithm in Rust (std only — no network, no API key) |
 | Icons          | [Lucide React](https://lucide.dev) only — no emoji anywhere in the UI  |
 
 ## Getting started
@@ -55,17 +56,9 @@ Gmail, Outlook and Yahoo require MailNext to be registered as an OAuth2 "install
 
 Configure each app's redirect URI as a loopback address (`http://127.0.0.1/callback` with a wildcard/any port, or add each port your provider requires) — MailNext binds an ephemeral local port and opens your system browser to complete sign-in.
 
+Gmail sign-in also requests the read-only `calendar.readonly` scope, which powers the calendar panel's "upcoming events" list (see below) — enable the **Google Calendar API** for your Cloud project at console.cloud.google.com/apis/library/calendar-json.googleapis.com, alongside Gmail/IMAP access, or that scope grant will fail. Accounts connected before this scope was added need to reconnect once for the calendar panel to sync.
+
 iCloud Mail and custom/enterprise servers don't need any of the above: sign in with your regular password or an [app-specific password](https://appleid.apple.com) directly in the onboarding flow.
-
-### AI email summaries (optional)
-
-Like the OAuth2 clients above, this is configured once by whoever builds/runs MailNext, not by end users:
-
-| Variable | Register at |
-| -------- | ----------- |
-| `MAILNEXT_ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
-
-With the variable set, the **Summarize** action on any open message sends its subject and body to `api.anthropic.com` (Claude Haiku 4.5) and shows a short summary — no key entry, no per-user setup. Leave it unset and the feature simply reports itself unavailable in **Settings → AI Summary**; nothing else in the app depends on it.
 
 ### Run in development
 

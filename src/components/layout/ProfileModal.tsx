@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { Camera, Check, User, X } from "lucide-react";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -32,7 +33,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   if (!isOpen || !activeAccount) return null;
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {

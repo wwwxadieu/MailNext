@@ -33,6 +33,7 @@ pub fn run() {
             commands::imap::imap_fetch_messages,
             commands::imap::imap_set_flag,
             commands::imap::imap_move_message,
+            commands::imap::imap_move_messages,
             commands::imap::imap_delete_messages,
             commands::imap::imap_empty_folder,
             commands::imap::imap_unseen_count,
@@ -42,9 +43,10 @@ pub fn run() {
             commands::watcher::start_mail_watcher,
             commands::watcher::stop_mail_watcher,
             commands::summarize::summarize_email,
-            commands::summarize::ai_summary_available,
             commands::backup::save_backup_file,
             commands::backup::read_backup_file,
+            commands::attachments::save_attachment_file,
+            commands::calendar::gmail_list_calendar_events,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the MailNext application");

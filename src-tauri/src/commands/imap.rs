@@ -471,6 +471,32 @@ pub async fn imap_move_message(
 }
 
 #[tauri::command]
+pub async fn imap_move_messages(
+    connection: ImapConnection,
+    folder: String,
+    uids: Vec<u32>,
+    destination: String,
+) -> Result<(), String> {
+    if uids.is_empty() {
+        return Ok(());
+    }
+    let mut session = connect(&connection).await?;
+    session
+        .select(&folder)
+        .await
+        .map_err(|e| format!("Could not open folder '{folder}': {e}"))?;
+
+    let uid_set = uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+    session
+        .uid_mv(uid_set, &destination)
+        .await
+        .map_err(|e| format!("Could not move messages: {e}"))?;
+
+    session.logout().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn imap_delete_messages(
     connection: ImapConnection,
     folder: String,

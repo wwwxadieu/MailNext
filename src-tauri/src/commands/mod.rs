@@ -1,5 +1,7 @@
 pub mod accounts;
+pub mod attachments;
 pub mod backup;
+pub mod calendar;
 pub mod imap;
 pub mod notifications;
 pub mod oauth;

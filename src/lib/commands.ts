@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  CalendarEventDto,
   EmailMessage,
   FolderInfo,
   ImapConnection,
@@ -66,6 +67,15 @@ export function imapMoveMessage(
   return invoke("imap_move_message", { connection, folder, uid, destination });
 }
 
+export function imapMoveMessages(
+  connection: ImapConnection,
+  folder: string,
+  uids: number[],
+  destination: string,
+): Promise<void> {
+  return invoke("imap_move_messages", { connection, folder, uids, destination });
+}
+
 export function imapDeleteMessages(connection: ImapConnection, folder: string, uids: number[]): Promise<void> {
   return invoke("imap_delete_messages", { connection, folder, uids });
 }
@@ -107,14 +117,22 @@ export function summarizeEmail(subject: string, body: string): Promise<string> {
   return invoke("summarize_email", { subject, body });
 }
 
-export function aiSummaryAvailable(): Promise<boolean> {
-  return invoke("ai_summary_available");
-}
-
 export function saveBackupFile(path: string, content: string): Promise<void> {
   return invoke("save_backup_file", { path, content });
 }
 
 export function readBackupFile(path: string): Promise<string> {
   return invoke("read_backup_file", { path });
+}
+
+export function saveAttachmentFile(path: string, contentBase64: string): Promise<void> {
+  return invoke("save_attachment_file", { path, contentBase64 });
+}
+
+export function gmailListCalendarEvents(
+  accessToken: string,
+  timeMin: string,
+  timeMax: string,
+): Promise<CalendarEventDto[]> {
+  return invoke("gmail_list_calendar_events", { accessToken, timeMin, timeMax });
 }
