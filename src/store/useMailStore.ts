@@ -195,20 +195,28 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   moveMessages: async (account, folder, messages, destination) => {
+    if (messages.length === 0) return;
     const connection = toImapConnection(account);
-    const movedIds = new Set<string>();
-    for (const message of messages) {
-      try {
-        await commands.imapMoveMessage(connection, folder.path, message.uid, destination.path);
-        await repo.deleteMessage(message.id);
-        movedIds.add(message.id);
-      } catch {
-        // Leave it in place if the move fails — the next sync reconciles it.
-      }
+    let movedIds: string[] = [];
+    try {
+      // One IMAP session handling every UID, instead of reconnecting per
+      // message — the server-side move itself is still one command either way.
+      await commands.imapMoveMessages(
+        connection,
+        folder.path,
+        messages.map((m) => m.uid),
+        destination.path,
+      );
+      movedIds = messages.map((m) => m.id);
+      await repo.deleteMessages(movedIds);
+    } catch {
+      // Leave them in place if the move fails — the next sync reconciles it.
+      return;
     }
+    const movedSet = new Set(movedIds);
     set((state) => ({
-      messages: state.messages.filter((m) => !movedIds.has(m.id)),
-      selectedMessageId: movedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+      messages: state.messages.filter((m) => !movedSet.has(m.id)),
+      selectedMessageId: movedSet.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
     }));
   },
 
@@ -216,13 +224,12 @@ export const useMailStore = create<MailState>((set, get) => ({
     const connection = toImapConnection(account);
     const uids = messages.map((m) => m.uid);
     await commands.imapDeleteMessages(connection, folder.path, uids);
-    const deletedIds = new Set(messages.map((m) => m.id));
-    for (const id of deletedIds) {
-      await repo.deleteMessage(id);
-    }
+    const deletedIds = messages.map((m) => m.id);
+    await repo.deleteMessages(deletedIds);
+    const deletedSet = new Set(deletedIds);
     set((state) => ({
-      messages: state.messages.filter((m) => !deletedIds.has(m.id)),
-      selectedMessageId: deletedIds.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
+      messages: state.messages.filter((m) => !deletedSet.has(m.id)),
+      selectedMessageId: deletedSet.has(state.selectedMessageId ?? "") ? null : state.selectedMessageId,
     }));
   },
 

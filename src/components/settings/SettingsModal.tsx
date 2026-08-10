@@ -1,18 +1,39 @@
+import { lazy, Suspense } from "react";
 import clsx from "clsx";
 import { AtSign, Bell, FileText, Filter, PenLine, RefreshCw, SunMoon, Tag } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { GeneralSettings } from "@/components/settings/GeneralSettings";
-import { AccountsSettings } from "@/components/settings/AccountsSettings";
-import { SignatureEditor } from "@/components/settings/SignatureEditor";
-import { TemplateManager } from "@/components/settings/TemplateManager";
-import { LabelManager } from "@/components/settings/LabelManager";
-import { RulesSettings } from "@/components/settings/RulesSettings";
-import { NotificationSettings } from "@/components/settings/NotificationSettings";
-import { UpdateSettings } from "@/components/settings/UpdateSettings";
 import { useUiStore } from "@/store/useUiStore";
 import type { SettingsPanel } from "@/store/useUiStore";
 import { useT } from "@/lib/useT";
+
+// Lazy-loaded so opening the app doesn't pull in every settings tab's code
+// (rich text template editor, signature editor, etc.) before Settings is
+// ever opened — most sessions never touch most of these tabs.
+const GeneralSettings = lazy(() =>
+  import("@/components/settings/GeneralSettings").then((m) => ({ default: m.GeneralSettings })),
+);
+const AccountsSettings = lazy(() =>
+  import("@/components/settings/AccountsSettings").then((m) => ({ default: m.AccountsSettings })),
+);
+const SignatureEditor = lazy(() =>
+  import("@/components/settings/SignatureEditor").then((m) => ({ default: m.SignatureEditor })),
+);
+const TemplateManager = lazy(() =>
+  import("@/components/settings/TemplateManager").then((m) => ({ default: m.TemplateManager })),
+);
+const LabelManager = lazy(() =>
+  import("@/components/settings/LabelManager").then((m) => ({ default: m.LabelManager })),
+);
+const RulesSettings = lazy(() =>
+  import("@/components/settings/RulesSettings").then((m) => ({ default: m.RulesSettings })),
+);
+const NotificationSettings = lazy(() =>
+  import("@/components/settings/NotificationSettings").then((m) => ({ default: m.NotificationSettings })),
+);
+const UpdateSettings = lazy(() =>
+  import("@/components/settings/UpdateSettings").then((m) => ({ default: m.UpdateSettings })),
+);
 
 // Ordered by how often someone actually reaches for each tab: identity and
 // day-to-day preferences first, mail-shaping features next, and the
@@ -58,14 +79,16 @@ export function SettingsModal() {
           ))}
         </div>
         <div className="min-h-[280px] flex-1">
-          {panel === "general" && <GeneralSettings />}
-          {panel === "accounts" && <AccountsSettings />}
-          {panel === "signatures" && <SignatureEditor />}
-          {panel === "templates" && <TemplateManager />}
-          {panel === "labels" && <LabelManager />}
-          {panel === "rules" && <RulesSettings />}
-          {panel === "notifications" && <NotificationSettings />}
-          {panel === "updates" && <UpdateSettings />}
+          <Suspense fallback={null}>
+            {panel === "general" && <GeneralSettings />}
+            {panel === "accounts" && <AccountsSettings />}
+            {panel === "signatures" && <SignatureEditor />}
+            {panel === "templates" && <TemplateManager />}
+            {panel === "labels" && <LabelManager />}
+            {panel === "rules" && <RulesSettings />}
+            {panel === "notifications" && <NotificationSettings />}
+            {panel === "updates" && <UpdateSettings />}
+          </Suspense>
         </div>
       </div>
     </Modal>

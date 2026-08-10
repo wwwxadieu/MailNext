@@ -134,18 +134,35 @@ export async function classifyAndFileNewMessages(
   if (folder.special_use !== "inbox" || messages.length === 0) return filed;
 
   const connection = toImapConnection(account);
+
+  // Group by destination first so each category folder gets one IMAP
+  // session for all its matches, instead of reconnecting per message.
+  const byDestination = new Map<string, { destination: FolderRow; uids: number[] }>();
   for (const message of messages) {
     const category = CATEGORIES.find((c) => c.matches?.(message));
     if (!category) continue;
     const destination = allFolders.find((f) => f.special_use === category.specialUse);
     if (!destination) continue;
-    try {
-      await commands.imapMoveMessage(connection, folder.path, message.uid, destination.path);
-      await repo.deleteMessage(`${folder.id}:${message.uid}`);
-      filed.add(message.uid);
-    } catch {
-      // Best-effort — leave it in the inbox if the move fails.
+    const entry = byDestination.get(destination.id);
+    if (entry) {
+      entry.uids.push(message.uid);
+    } else {
+      byDestination.set(destination.id, { destination, uids: [message.uid] });
     }
   }
+
+  const messageIdsToDrop: string[] = [];
+  for (const { destination, uids } of byDestination.values()) {
+    try {
+      await commands.imapMoveMessages(connection, folder.path, uids, destination.path);
+      for (const uid of uids) {
+        filed.add(uid);
+        messageIdsToDrop.push(`${folder.id}:${uid}`);
+      }
+    } catch {
+      // Best-effort — leave these in the inbox if the move fails.
+    }
+  }
+  await repo.deleteMessages(messageIdsToDrop);
   return filed;
 }

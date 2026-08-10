@@ -209,41 +209,52 @@ export async function deleteFolderRecord(folderId: string): Promise<void> {
 // Messages
 // ---------------------------------------------------------------------------
 
+const MESSAGE_COLUMNS = 18;
+// Keeps each INSERT's bound-parameter count comfortably under SQLite's
+// default 999-variable limit, while still turning what used to be one IPC
+// round-trip per message into a handful of round-trips for a full 50-message
+// sync page.
+const CACHE_MESSAGES_CHUNK_SIZE = 40;
+
 export async function cacheMessages(
   accountId: string,
   folderId: string,
   messages: EmailMessage[],
 ): Promise<void> {
-  for (const message of messages) {
-    const id = `${folderId}:${message.uid}`;
+  for (let start = 0; start < messages.length; start += CACHE_MESSAGES_CHUNK_SIZE) {
+    const chunk = messages.slice(start, start + CACHE_MESSAGES_CHUNK_SIZE);
+    const rowPlaceholders = chunk
+      .map(() => `(${Array(MESSAGE_COLUMNS).fill("?").join(", ")})`)
+      .join(", ");
+    const params = chunk.flatMap((message) => [
+      `${folderId}:${message.uid}`,
+      accountId,
+      folderId,
+      message.uid,
+      message.messageId,
+      message.subject,
+      message.from?.name ?? null,
+      message.from?.address ?? null,
+      JSON.stringify(message.to),
+      JSON.stringify(message.cc),
+      message.date,
+      message.snippet,
+      message.bodyHtml,
+      message.bodyText,
+      message.isRead ? 1 : 0,
+      message.isFlagged ? 1 : 0,
+      message.attachments.length > 0 ? 1 : 0,
+      JSON.stringify(message.attachments),
+    ]);
     await dbExecute(
       `INSERT INTO messages (
         id, account_id, folder_id, uid, message_id, subject, from_name, from_address,
         to_json, cc_json, date, snippet, body_html, body_text, is_read, is_flagged,
         has_attachments, attachments_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ${rowPlaceholders}
       ON CONFLICT (folder_id, uid) DO UPDATE SET
         subject = excluded.subject, is_read = excluded.is_read, is_flagged = excluded.is_flagged`,
-      [
-        id,
-        accountId,
-        folderId,
-        message.uid,
-        message.messageId,
-        message.subject,
-        message.from?.name ?? null,
-        message.from?.address ?? null,
-        JSON.stringify(message.to),
-        JSON.stringify(message.cc),
-        message.date,
-        message.snippet,
-        message.bodyHtml,
-        message.bodyText,
-        message.isRead ? 1 : 0,
-        message.isFlagged ? 1 : 0,
-        message.attachments.length > 0 ? 1 : 0,
-        JSON.stringify(message.attachments),
-      ],
+      params,
     );
   }
 }
@@ -280,6 +291,12 @@ export async function listMessageUids(folderId: string): Promise<Set<number>> {
 
 export async function deleteMessage(messageId: string): Promise<void> {
   await dbExecute("DELETE FROM messages WHERE id = ?", [messageId]);
+}
+
+export async function deleteMessages(messageIds: string[]): Promise<void> {
+  if (messageIds.length === 0) return;
+  const placeholders = messageIds.map(() => "?").join(", ");
+  await dbExecute(`DELETE FROM messages WHERE id IN (${placeholders})`, messageIds);
 }
 
 export async function deleteMessagesByFolder(folderId: string): Promise<void> {

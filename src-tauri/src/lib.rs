@@ -33,6 +33,7 @@ pub fn run() {
             commands::imap::imap_fetch_messages,
             commands::imap::imap_set_flag,
             commands::imap::imap_move_message,
+            commands::imap::imap_move_messages,
             commands::imap::imap_delete_messages,
             commands::imap::imap_empty_folder,
             commands::imap::imap_unseen_count,
