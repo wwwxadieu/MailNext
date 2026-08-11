@@ -13,7 +13,7 @@ export function FloatingComposeButton() {
     <button
       onClick={() => openCompose()}
       title={t("sidebar.compose")}
-      className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent/90 text-white shadow-glass-lg backdrop-blur-xl transition-all hover:scale-105 hover:bg-accent-hover/90 active:scale-95"
+      className="glass-panel-elevated fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full text-accent transition-all hover:scale-105 hover:bg-black/5 active:scale-95 dark:hover:bg-white/10"
     >
       <Pencil size={20} strokeWidth={1.75} />
     </button>
