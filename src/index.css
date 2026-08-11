@@ -28,6 +28,11 @@
 
 :root {
   color-scheme: light dark;
+  /* Kept in sync with the UI scale setting by useUiScaleStore — lets any
+   * vh/vw-based CSS divide the zoom factor back out (zoom doesn't rescale
+   * viewport units, only px/rem-based sizing). Defaults to 1 so calc()
+   * expressions using it never break before hydration sets the real value. */
+  --ui-scale: 1;
 }
 
 html,
