@@ -10,9 +10,15 @@ import { useT } from "@/lib/useT";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
+// The vh/vw here are divided by --ui-scale to compensate for Chromium's
+// `zoom` (used by the UI scale setting) not rescaling viewport units the
+// way it rescales everything else — see the comment on applyScale in
+// useUiScaleStore.ts. Without this, `calc(100vh - 504px)` renders against
+// the real unzoomed window height, so at 110%+ scale the box ends up
+// positioned/sized past the actual window edge and gets clipped.
 const COLLAPSED_STYLE: CSSProperties = {
-  top: "calc(100vh - 504px)",
-  left: "calc(100vw - 464px)",
+  top: "calc(100vh / var(--ui-scale, 1) - 504px)",
+  left: "calc(100vw / var(--ui-scale, 1) - 464px)",
   width: "440px",
   height: "480px",
 };
@@ -20,8 +26,8 @@ const COLLAPSED_STYLE: CSSProperties = {
 const EXPANDED_STYLE: CSSProperties = {
   top: "32px",
   left: "32px",
-  width: "calc(100vw - 64px)",
-  height: "calc(100vh - 64px)",
+  width: "calc(100vw / var(--ui-scale, 1) - 64px)",
+  height: "calc(100vh / var(--ui-scale, 1) - 64px)",
 };
 
 export function ComposeModal() {

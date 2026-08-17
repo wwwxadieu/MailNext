@@ -12,11 +12,18 @@ interface UiScaleState {
 }
 
 function applyScale(scale: UiScale) {
-  // Chromium's `zoom` (WebView2 on Windows) rescales the whole render —
-  // including how vh/vw resolve — so 100vh/100vw layouts stay correctly
-  // filled, unlike `transform: scale()` which would leave blank space or
-  // clip content at the edges.
+  // Chromium's `zoom` (WebView2 on Windows) rescales px/rem-based sizing
+  // consistently (unlike `transform: scale()`, which would leave blank
+  // space or clip content at the edges) — but it does NOT rescale vh/vw:
+  // those keep resolving against the real, unzoomed window size, so a
+  // `100vh` box ends up rendered scale× taller than the actual window and
+  // gets clipped. The app shell avoids vh/vw entirely (see index.css's
+  // html/body/#root height:100%/width:100% cascade), but a few fixed-
+  // position elements (the compose modal's corner-anchored positioning)
+  // still need vh/vw for viewport-relative placement — --ui-scale lets
+  // them divide it back out via calc(100vh / var(--ui-scale)).
   document.documentElement.style.zoom = `${scale}%`;
+  document.documentElement.style.setProperty("--ui-scale", String(scale / 100));
 }
 
 export const useUiScaleStore = create<UiScaleState>((set) => ({

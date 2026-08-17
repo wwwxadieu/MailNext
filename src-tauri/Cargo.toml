@@ -1,6 +1,6 @@
 [package]
 name = "mailnext"
-version = "0.6.9"
+version = "0.6.11"
 description = "MailNext — a native email client for Windows 11."
 authors = ["MailNext"]
 edition = "2021"
